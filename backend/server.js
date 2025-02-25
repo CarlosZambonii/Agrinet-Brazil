@@ -12,16 +12,18 @@ const app = express();
 // Middleware
 app.use(express.json());
 app.use(cors({ origin: "https://www.ntari.org", credentials: true }));
-app.use(authMiddleware); // Ensuring Wix API calls are authenticated
+app.use(authMiddleware);
 
 // Routes
 const authRoutes = require("./routes/authRoutes");
 const keyRoutes = require("./routes/keyRoutes");
 const contractRoutes = require("./routes/contracts");
+const adminRoutes = require("./routes/admin");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/keys", keyRoutes);
 app.use("/api/contracts", contractRoutes);
+app.use("/api/admin", adminRoutes);
 
 // Connect to MongoDB and start server
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
