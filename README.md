@@ -6,35 +6,35 @@ Agrinet is a decentralized agricultural trading and service platform built to en
 
 ## Features
 
-### Marketplace System 🏪 
+#### Marketplace System 🏪 
 
 - Direct Market Access: Producers list goods, services, and contracts.
 - Agrotourism Integration: Farmers can offer farm tours, events, and educational workshops.
 - Service Marketplace: Users can provide or request agricultural services (e.g., logistics, maintenance).
 
-### Secure Transactions 🔒
+#### Secure Transactions 🔒
 
 - LBTAS (Leveson-Based Trade Assessment Scale): Ensures a trust-based rating system.
 - Dialog Recorder: Logs key transaction details for security and auditing.
 - Machine Scrub Module: Filters and verifies transaction data.
 
-### Key & Authentication System 🔑
+#### Key & Authentication System 🔑
 
 - McEliese Key Generation: Ensures secure user identification.
 - Key Transmission Limits: Auto-retirement after 3, 6, 9, 12, or 365 transmissions.
 - Multi-Factor Verification: Email/phone validation with retry & lockout security.
 
-### PING System 📡
+#### PING System 📡
 
 - Production Progress Reporting: Allows contract buyers to track order status.
 - Real-Time Notifications: Updates on market trends, contract changes, and service requests.
 
-### Financial Transactions 🏦
+#### Financial Transactions 🏦
 
 - Deposit & Donations to NTARI Account: Supports decentralized funding.
 - Automated Payouts: Ensures secure fund disbursements upon transaction completion.
 
-### Decentralized Data Management 🌍
+#### Decentralized Data Management 🌍
 
 - User Profiles & Logs: Maintains key issuance logs parallel to user profiles.
 - Geo-Filtering & Search Optimization: Enables market visibility based on location.
