@@ -42,7 +42,8 @@ const TransactionSchema = new mongoose.Schema({
   sellerId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   listingId: { type: mongoose.Schema.Types.ObjectId, ref: "Listing" },
   status: { type: String, enum: ["pending", "completed"], default: "pending" },
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+  ratingGiven: { type: Boolean, default: false }
 });
 
 const Transaction = mongoose.model("Transaction", TransactionSchema);
@@ -65,6 +66,34 @@ router.get("/transactions", async (req, res) => {
     res.json(transactions);
   } catch (error) {
     res.status(500).json({ error: "Error fetching transactions" });
+  }
+});
+
+// LBTAS Reputation System
+const User = require("../models/User");
+
+// Submit Rating
+router.post("/transactions/rate", async (req, res) => {
+  try {
+    const { transactionId, rating } = req.body;
+    if (rating < -1 || rating > 4) {
+      return res.status(400).json({ error: "Invalid rating value. Must be between -1 and 4." });
+    }
+
+    const transaction = await Transaction.findById(transactionId);
+    if (!transaction || transaction.ratingGiven) {
+      return res.status(400).json({ error: "Invalid or already rated transaction." });
+    }
+
+    const seller = await User.findById(transaction.sellerId);
+    seller.reputationScore += rating;
+    await seller.save();
+    transaction.ratingGiven = true;
+    await transaction.save();
+
+    res.json({ message: "Rating submitted successfully", updatedReputation: seller.reputationScore });
+  } catch (error) {
+    res.status(500).json({ error: "Error submitting rating" });
   }
 });
 
