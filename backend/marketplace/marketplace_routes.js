@@ -41,9 +41,11 @@ const TransactionSchema = new mongoose.Schema({
   buyerId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   sellerId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   listingId: { type: mongoose.Schema.Types.ObjectId, ref: "Listing" },
-  status: { type: String, enum: ["pending", "completed"], default: "pending" },
+  status: { type: String, enum: ["pending", "in-progress", "completed"], default: "pending" },
   createdAt: { type: Date, default: Date.now },
-  ratingGiven: { type: Boolean, default: false }
+  ratingGiven: { type: Boolean, default: false },
+  lastPing: { type: Date, default: Date.now },
+  pingCount: { type: Number, default: 0 }
 });
 
 const Transaction = mongoose.model("Transaction", TransactionSchema);
@@ -94,6 +96,25 @@ router.post("/transactions/rate", async (req, res) => {
     res.json({ message: "Rating submitted successfully", updatedReputation: seller.reputationScore });
   } catch (error) {
     res.status(500).json({ error: "Error submitting rating" });
+  }
+});
+
+// PING Module - Transaction Progress Tracking
+router.post("/transactions/ping", async (req, res) => {
+  try {
+    const { transactionId } = req.body;
+    const transaction = await Transaction.findById(transactionId);
+    if (!transaction) {
+      return res.status(404).json({ error: "Transaction not found" });
+    }
+
+    transaction.lastPing = new Date();
+    transaction.pingCount += 1;
+    await transaction.save();
+
+    res.json({ message: "Ping recorded", pingCount: transaction.pingCount, lastPing: transaction.lastPing });
+  } catch (error) {
+    res.status(500).json({ error: "Error recording ping" });
   }
 });
 
