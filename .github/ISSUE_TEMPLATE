@@ -1,0 +1,173 @@
+from zipfile import ZipFile
+from pathlib import Path
+
+# Create the directory structure for GitHub issue templates
+base_dir = Path("/mnt/data/.github/ISSUE_TEMPLATE")
+base_dir.mkdir(parents=True, exist_ok=True)
+
+# Define the issue templates
+templates = {
+    "core-infrastructure.md": """---
+name: "🟢 Phase 1: Core Infrastructure & Authentication"
+about: "Setup backend, authentication, and key management"
+title: "[Phase 1] Task: <title here>"
+labels: [phase1, backend, auth, keys]
+---
+
+### 🎯 Goal
+- Implement foundational backend systems for authentication and key control.
+
+### ✅ Checklist
+- [ ] Create MongoDB schema for Users (username, email, phone, verified)
+- [ ] Create MongoDB schema for Keys (7 keys, retire counter)
+- [ ] Implement McEliece key issuance logic (7 keys per user)
+- [ ] Auto-retire keys after 3, 6, 9, 12, 365 transmissions
+- [ ] Build key-based authentication with retry lockout
+- [ ] Setup admin dashboard routes
+- [ ] Display user lockouts and key usage logs
+- [ ] Create unit tests for key expiry and login flow
+
+### 📎 Related Files
+- backend/controllers/user_controller.js
+- backend/models/user.js, key.js
+- backend/routes/authRoutes.js, admin.js
+""",
+    "marketplace-transactions.md": """---
+name: "🟡 Phase 2: Marketplace & Transactions"
+about: "Marketplace listings, transaction logic, LBTAS rating system"
+title: "[Phase 2] Task: <title here>"
+labels: [phase2, marketplace, transactions, rating]
+---
+
+### 🎯 Goal
+- Enable users to post listings, initiate transactions, rate each other, and lock funds in escrow.
+
+### ✅ Checklist
+- [ ] Setup Listings schema (product, service, agrotourism, etc)
+- [ ] Implement filters: location, type, price range, keyword
+- [ ] Create /transactions endpoint (buyer, seller, listing ref)
+- [ ] Add Dialog Recorder and validation logic
+- [ ] Implement PING Module: /ping and tracking logic
+- [ ] Setup dual rating system (buyer/seller both rate)
+- [ ] Trigger escrow release only after both rate
+- [ ] Add Machine Scrub Module: dialog confidence + reputation
+- [ ] Auto-flag transaction if risk or mismatch detected
+
+### 📎 Related Files
+- backend/controllers/transaction_controller.js
+- backend/models/listing.js, transaction.js
+""",
+    "communication-notifications.md": """---
+name: "🟠 Phase 3: Communication & Notification System"
+about: "Broadcasts, Socket.IO events, live transaction matching"
+title: "[Phase 3] Task: <title here>"
+labels: [phase3, notifications, socketio, matching]
+---
+
+### 🎯 Goal
+- Enable geofenced broadcasts, real-time updates, and match validation.
+
+### ✅ Checklist
+- [ ] Create /broadcasts endpoint with geo-tagging
+- [ ] Store messages in MongoDB and filter by location
+- [ ] Build dialog-matching validator and flag mismatches
+- [ ] Integrate Socket.IO for event channels:
+  - new-transaction
+  - ping-overdue
+  - rating-complete
+- [ ] Create Notification schema for persistent alerts
+- [ ] Setup BullMQ job queue to watch ping deadlines
+
+### 📎 Related Files
+- backend/controllers/notification_controller.js
+- backend/models/notification.js
+- backend/bull/pingJobs.js
+"""
+}
+
+# Write templates to files
+for filename, content in templates.items():
+    file_path = base_dir / filename
+    file_path.write_text(content)
+
+# Zip the .github directory
+zip_path = "/mnt/data/agrinet_github_issue_templates.zip"
+with ZipFile(zip_path, "w") as zipf:
+    for file in base_dir.rglob("*"):
+        zipf.write(file, file.relative_to("/mnt/data"))
+
+zip_path
+
+phase_4_5_templates = {
+    "advanced-tools-ai.md": """---
+name: "🔴 Phase 4: Advanced Market Tools & AI Analytics"
+about: "Agrotourism, services, payments, and analytics features"
+title: "[Phase 4] Task: <title here>"
+labels: [phase4, agrotourism, services, ai, payments]
+---
+
+### 🎯 Goal
+- Expand platform capabilities with services, secure payments, and AI analytics.
+
+### ✅ Checklist
+- [ ] Add agrotourism event schema (title, date, photos, location)
+- [ ] Build photo upload functionality with geotagging
+- [ ] Extend listing categories: Labor, Planning, Processing
+- [ ] Add scheduling and rate fields to services
+- [ ] Create NTARI deposit accounts and balance schema
+- [ ] Implement donation-based funding for listings
+- [ ] Design AI logic to suggest pricing based on:
+  - market trends
+  - supply & demand
+  - location
+- [ ] Generate admin dashboard insights for:
+  - market heatmap
+  - seller reputation
+  - product demand
+
+### 📎 Related Files
+- backend/controllers/market_controller.js
+- backend/models/contract.js, user.js
+""",
+    "optimization-automation.md": """---
+name: "🔵 Phase 5: System Optimization & Automation"
+about: "Key automation, AI Assistant, and UX refinement"
+title: "[Phase 5] Task: <title here>"
+labels: [phase5, optimization, ux, ai, automation]
+---
+
+### 🎯 Goal
+- Improve system performance, automation, and intelligent assistance.
+
+### ✅ Checklist
+- [ ] Auto-generate replacement keys before expiration
+- [ ] Archive expired keys and notify admin
+- [ ] Implement self-healing key lifecycle logic
+- [ ] Create AI Assistant (iFruit):
+  - Pricing suggestions
+  - Product recommendations
+  - Market navigation tips
+- [ ] Enhance responsive mobile design
+- [ ] Optimize query performance for listing searches
+- [ ] Create clear onboarding flows for new users
+- [ ] Visualize contract flows and transaction status
+- [ ] Add caching or index strategies for high-traffic data
+
+### 📎 Related Files
+- backend/controllers/user_controller.js
+- backend/models/key.js
+- frontend/ (UI improvements to be tracked)
+"""
+}
+
+# Write the additional templates
+for filename, content in phase_4_5_templates.items():
+    file_path = base_dir / filename
+    file_path.write_text(content)
+
+# Update the zip file
+with ZipFile(zip_path, "w") as zipf:
+    for file in base_dir.rglob("*"):
+        zipf.write(file, file.relative_to("/mnt/data"))
+
+zip_path
