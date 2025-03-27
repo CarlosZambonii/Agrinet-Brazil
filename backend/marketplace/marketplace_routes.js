@@ -2,7 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const router = express.Router();
 
-// Marketplace Schema
+// Schema for marketplace listings
 const ListingSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   type: { type: String, enum: ["product", "service", "plan", "agrotourism"], required: true },
@@ -15,28 +15,7 @@ const ListingSchema = new mongoose.Schema({
 
 const Listing = mongoose.model("Listing", ListingSchema);
 
-// Create Listing
-router.post("/listings", async (req, res) => {
-  try {
-    const newListing = new Listing(req.body);
-    await newListing.save();
-    res.status(201).json({ message: "Listing created successfully", listing: newListing });
-  } catch (error) {
-    res.status(500).json({ error: "Error creating listing" });
-  }
-});
-
-// Get Listings
-router.get("/listings", async (req, res) => {
-  try {
-    const listings = await Listing.find();
-    res.json(listings);
-  } catch (error) {
-    res.status(500).json({ error: "Error fetching listings" });
-  }
-});
-
-// Broadcast Schema
+// Schema for public broadcast messages
 const BroadcastSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   title: { type: String, required: true },
@@ -47,7 +26,7 @@ const BroadcastSchema = new mongoose.Schema({
 
 const Broadcast = mongoose.model("Broadcast", BroadcastSchema);
 
-// Create Broadcast
+// Endpoint to create a new broadcast
 router.post("/broadcasts", async (req, res) => {
   try {
     const newBroadcast = new Broadcast(req.body);
@@ -58,7 +37,7 @@ router.post("/broadcasts", async (req, res) => {
   }
 });
 
-// Get Broadcasts
+// Retrieve all broadcast messages
 router.get("/broadcasts", async (req, res) => {
   try {
     const broadcasts = await Broadcast.find();
@@ -68,13 +47,36 @@ router.get("/broadcasts", async (req, res) => {
   }
 });
 
-// Transaction Schema
+// Retrieve listings with filtering options
+router.get("/listings", async (req, res) => {
+  try {
+    const { location, type, minPrice, maxPrice, keyword } = req.query;
+    let filter = {};
+
+    // Build dynamic filter object
+    if (location) filter.location = new RegExp(location, "i");
+    if (type) filter.type = type;
+    if (minPrice || maxPrice) filter.price = {};
+    if (minPrice) filter.price.$gte = Number(minPrice);
+    if (maxPrice) filter.price.$lte = Number(maxPrice);
+    if (keyword) filter.title = new RegExp(keyword, "i");
+
+    const listings = await Listing.find(filter);
+    res.json(listings);
+  } catch (error) {
+    res.status(500).json({ error: "Error fetching listings" });
+  }
+});
+
+// Schema for transactions between users
 const TransactionSchema = new mongoose.Schema({
   buyerId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   sellerId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   listingId: { type: mongoose.Schema.Types.ObjectId, ref: "Listing" },
   status: { type: String, enum: ["pending", "in-progress", "completed"], default: "pending" },
   createdAt: { type: Date, default: Date.now },
+  buyerRated: { type: Boolean, default: false },
+  sellerRated: { type: Boolean, default: false },
   ratingGiven: { type: Boolean, default: false },
   lastPing: { type: Date, default: Date.now },
   pingCount: { type: Number, default: 0 },
@@ -85,7 +87,7 @@ const TransactionSchema = new mongoose.Schema({
 
 const Transaction = mongoose.model("Transaction", TransactionSchema);
 
-// Create Transaction
+// Endpoint to create a new transaction
 router.post("/transactions", async (req, res) => {
   try {
     const newTransaction = new Transaction(req.body);
@@ -96,7 +98,7 @@ router.post("/transactions", async (req, res) => {
   }
 });
 
-// Get Transactions
+// Retrieve all transactions and populate related references
 router.get("/transactions", async (req, res) => {
   try {
     const transactions = await Transaction.find().populate("buyerId sellerId listingId");
@@ -106,24 +108,25 @@ router.get("/transactions", async (req, res) => {
   }
 });
 
-// Dialog Matching / Transaction Validation
+// Validate dialog content for a transaction using basic confidence logic and scrub rules
 router.post("/transactions/dialog-validate", async (req, res) => {
   try {
     const { transactionId, dialogNotes } = req.body;
-    const transaction = await Transaction.findById(transactionId).populate("listingId");
+    const transaction = await Transaction.findById(transactionId).populate("listingId buyerId");
+    if (!transaction) return res.status(404).json({ error: "Transaction not found" });
 
-    if (!transaction) {
-      return res.status(404).json({ error: "Transaction not found" });
-    }
-
+    // Check how closely the dialog matches the listing title
     const expectedKeywords = transaction.listingId.title.toLowerCase().split(" ");
     const dialogWords = dialogNotes.toLowerCase().split(" ");
     const matches = expectedKeywords.filter(word => dialogWords.includes(word));
 
     const confidence = matches.length / expectedKeywords.length;
+    const userReputation = transaction.buyerId.reputationScore || 0;
+
     transaction.dialogNotes = dialogNotes;
 
-    if (confidence >= 0.6) {
+    // Use confidence and reputation to flag or approve the transaction
+    if (confidence >= 0.6 && userReputation >= 0) {
       transaction.dialogConfirmed = true;
       transaction.flaggedForReview = false;
     } else {
@@ -132,54 +135,64 @@ router.post("/transactions/dialog-validate", async (req, res) => {
     }
 
     await transaction.save();
-
     res.json({
       message: "Dialog validation complete",
       dialogConfirmed: transaction.dialogConfirmed,
       flaggedForReview: transaction.flaggedForReview,
-      confidence
+      confidence,
+      userReputation
     });
   } catch (error) {
     res.status(500).json({ error: "Error validating dialog data" });
   }
 });
 
-// LBTAS Reputation System
+// Import user model for rating logic
 const User = require("../models/User");
 
-// Submit Rating
+// Submit a rating as part of the LBTAS reputation system
 router.post("/transactions/rate", async (req, res) => {
   try {
-    const { transactionId, rating } = req.body;
-    if (rating < -1 || rating > 4) {
-      return res.status(400).json({ error: "Invalid rating value. Must be between -1 and 4." });
-    }
+    const { transactionId, rating, role } = req.body;
+    if (rating < -1 || rating > 4) return res.status(400).json({ error: "Invalid rating value. Must be between -1 and 4." });
 
     const transaction = await Transaction.findById(transactionId);
-    if (!transaction || transaction.ratingGiven) {
-      return res.status(400).json({ error: "Invalid or already rated transaction." });
+    if (!transaction) return res.status(404).json({ error: "Transaction not found" });
+
+    let userToRate;
+    // Check who is rating and if they have already submitted a rating
+    if (role === "buyer" && !transaction.buyerRated) {
+      userToRate = await User.findById(transaction.sellerId);
+      transaction.buyerRated = true;
+    } else if (role === "seller" && !transaction.sellerRated) {
+      userToRate = await User.findById(transaction.buyerId);
+      transaction.sellerRated = true;
+    } else {
+      return res.status(400).json({ error: "Already rated or invalid role" });
     }
 
-    const seller = await User.findById(transaction.sellerId);
-    seller.reputationScore += rating;
-    await seller.save();
-    transaction.ratingGiven = true;
-    await transaction.save();
+    // Update reputation score and mark transaction as rated
+    userToRate.reputationScore += rating;
+    await userToRate.save();
 
-    res.json({ message: "Rating submitted successfully", updatedReputation: seller.reputationScore });
+    if (transaction.buyerRated && transaction.sellerRated) {
+      transaction.ratingGiven = true;
+      transaction.status = "completed";
+    }
+
+    await transaction.save();
+    res.json({ message: "Rating submitted successfully", updatedReputation: userToRate.reputationScore });
   } catch (error) {
     res.status(500).json({ error: "Error submitting rating" });
   }
 });
 
-// PING Module - Transaction Progress Tracking
+// Log transaction activity (PING) to track updates
 router.post("/transactions/ping", async (req, res) => {
   try {
     const { transactionId } = req.body;
     const transaction = await Transaction.findById(transactionId);
-    if (!transaction) {
-      return res.status(404).json({ error: "Transaction not found" });
-    }
+    if (!transaction) return res.status(404).json({ error: "Transaction not found" });
 
     transaction.lastPing = new Date();
     transaction.pingCount += 1;
@@ -191,4 +204,5 @@ router.post("/transactions/ping", async (req, res) => {
   }
 });
 
+// Export all routes
 module.exports = router;
