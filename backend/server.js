@@ -5,12 +5,14 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const authMiddleware = require("./middleware/authMiddleware");
+const depositRoutes = require("./routes/depositRoutes");
 
 dotenv.config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use("/deposit", depositRoutes);
 
 // Server & Socket
 const server = http.createServer(app);
