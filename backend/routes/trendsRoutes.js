@@ -1,4 +1,4 @@
-// backend/routes/trendsRoutes.js (filtered and AI insights enabled)
+//(filtered and AI insights enabled)
 const express = require("express");
 const router = express.Router();
 const Transaction = require("../models/transaction");
