@@ -115,28 +115,11 @@ Verify:
 
 ## 🧠 6. Git-Based Decentralization Roadmap
 
-| Phase | Description |
-|-------|-------------|
-| 1     | Publish protocol to GitHub (Done ✅) |
-| 2     | Modular starter forks (e.g. agrinet-foodforest) |
-| 3     | Open RFC + Maintainer Council governance model |
-| 4     | Mirror regional node deployment + blockchain hashing |
-| 5     | Launch plugin system + LTS branches |
-
 Fork Naming Examples:
 - agrinet-urbanroots → smart cities
 - agrinet-foodforest → permaculture
 - agrinet-sahara → desert microgrids
 - agrinet-mashamba → Kiswahili agro-coops
-
----
-
-## 🎯 7. Next Step Recommendations
-
-- [ ] Finalize frontend for trends + deposits (Wix or React)
-- [ ] Deploy 2nd node (testnet peer federation)
-- [ ] Start community RFCs via GitHub (agrinet-RFCs repo)
-- [ ] Add light blockchain hash logging (optional)
 
 ---
 
