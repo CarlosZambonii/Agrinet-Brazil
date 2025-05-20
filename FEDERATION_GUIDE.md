@@ -104,14 +104,14 @@ Verify:
 ---
 
 ## 🔗 5. Federation Compliance Rules
-I: To be federated:
+I. To be federated:
 - Use the exact transmission string format: key1/key2/UI_string.
 - Store user data according to Agrinet key-auth standards.
 - Implement the Open Dialog and Mycelium sync modules.
 - Ensure every transaction is LBTAS rated.
 
 ### Legal & Licensing
-II: Agrinet is licensed under GNU GPL v3.0. Your fork:
+II. Agrinet is licensed under GNU GPL v3.0. Your fork:
 - Must remain open-source.
 - Cannot restrict access or charge license fees.
 - Must include the original license and clearly indicate any modifications.
