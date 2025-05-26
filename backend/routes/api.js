@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 
-const Notification = require("../models/Notification");
+const Notification = require("../models/notification");
 const { addPingJob } = require('../bull/pingJobs');
-const Transaction = require("../models/Transaction");
+const Transaction = require("../models/transaction");
 
 // POST /api/transactions - create a new transaction and send notification
 router.post('/transactions', async (req, res) => {
