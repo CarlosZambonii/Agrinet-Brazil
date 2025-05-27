@@ -1,10 +1,13 @@
 const { Queue, Worker } = require('bullmq');
-const Redis = require('ioredis');
 const Transaction = require('../marketplace/models/transaction');
 
-const pingQueue = new Queue('ping-deadline', {
-  connection: new Redis()
-});
+const connection = {
+  host: 'localhost', // Change to your Redis host if needed
+  port: 6379,        // Change to your Redis port if needed
+  maxRetriesPerRequest: null, // REQUIRED for BullMQ
+};
+
+const pingQueue = new Queue('ping-deadline', { connection });
 
 const addPingJob = (transactionId) => {
   pingQueue.add('checkPing', { transactionId }, { delay: 24 * 60 * 60 * 1000 }); // 24h delay
@@ -23,8 +26,6 @@ const worker = new Worker('ping-deadline', async job => {
       message: "🚨 A transaction has not been updated in 3+ days"
     });
   }
-}, {
-  connection: new Redis()
-});
+}, { connection });
 
 module.exports = { addPingJob };
