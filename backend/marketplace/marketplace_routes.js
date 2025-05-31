@@ -87,7 +87,7 @@ const TransactionSchema = new mongoose.Schema({
   escrowReleasedAt: { type: Date, default: null } // Timestamp of escrow release
 });
 
-const Transaction = mongoose.model("Transaction", TransactionSchema);
+const Transaction = mongoose.models.Transaction || mongoose.model("Transaction", TransactionSchema);
 
 // Endpoint to create a new transaction
 router.post("/transactions", async (req, res) => {
