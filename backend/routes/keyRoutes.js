@@ -1,6 +1,6 @@
 const express = require("express");
 const crypto = require("crypto");
-const Key = require("../models/Key");
+const Key = require("../models/key");
 const router = express.Router();
 
 // Generate a secure key (McEliese Method Alternative)
