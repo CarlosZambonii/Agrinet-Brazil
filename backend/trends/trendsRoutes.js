@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const User = require("../models/user");
-const Listing = require("../marketplace/models/listing");
+const Listing = require("../marketplace/models/listings");
 const Transaction = require("../models/transaction");
 
 // 1. Top Rated Producers
