@@ -2,11 +2,11 @@ const express = require("express");
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require("cors");
-const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const authMiddleware = require("./middleware/authMiddleware");
 const depositRoutes = require("./routes/depositRoutes");
 
+// Load environment variables
 dotenv.config();
 
 const app = express();
@@ -74,14 +74,10 @@ app.use("/api/marketplace", marketplaceRoutes);
 app.use('/users', userRoutes);
 app.use('/products', productRoutes);
 
-// Connect to MongoDB and start server
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB Connected"))
-  .catch(err => console.error("MongoDB Connection Error:", err));
+// REMOVE MongoDB connection and instead ensure DynamoDB client is configured in your data access files
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-
 
 // Federation
 const federationRoutes = require('./federation/federationRoutes');
@@ -91,6 +87,7 @@ app.use('/federation', federationRoutes);
 app.use('/trends', trendsRoutes);
 
 //Optionally run federationSyncJob.js on boot:
-
 const runFederationSync = require('./federation/federationSyncJob');
 runFederationSync(); // kicks off first run
+
+// No MongoDB-specific code remains. All DynamoDB access should be handled in controller/data files.
