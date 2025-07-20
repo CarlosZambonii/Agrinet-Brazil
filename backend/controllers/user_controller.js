@@ -1,6 +1,7 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const docClient = require('../lib/dynamodbClient');
 
 exports.registerUser = async (req, res) => {
     try {
