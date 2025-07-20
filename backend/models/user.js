@@ -1,14 +1,34 @@
-const mongoose = require("mongoose");
+// DynamoDB does not require a schema or model definition like Mongoose.
+// Instead, you can use this file to define helper functions for user objects,
+// or simply export attribute names for consistency across your codebase.
 
-const UserSchema = new mongoose.Schema({
-  username: { type: String, required: true, unique: true },
-  email: { type: String, required: true, unique: true },
-  phone: { type: String, unique: true },
-  password: { type: String, required: true },
-  verified: { type: Boolean, default: false },
-  location: { type: String, required: true },
-  role: { type: String, enum: ["producer", "consumer", "admin"], default: "consumer" },
-  reputationScore: { type: Number, default: 0 },  // LBTAS Score
-});
+const USER_TABLE_NAME = "Users";
 
-module.exports = mongoose.model("User", UserSchema);
+function createUserItem({
+  id, // You should generate a unique id for each user (e.g., uuid)
+  username,
+  email,
+  phone,
+  password,
+  verified = false,
+  location,
+  role = "consumer",
+  reputationScore = 0
+}) {
+  return {
+    id, // Partition key for DynamoDB table
+    username,
+    email,
+    phone,
+    password,
+    verified,
+    location,
+    role,
+    reputationScore
+  };
+}
+
+module.exports = {
+  USER_TABLE_NAME,
+  createUserItem
+};
