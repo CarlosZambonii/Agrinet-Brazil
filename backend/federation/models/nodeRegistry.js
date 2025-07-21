@@ -1,10 +1,32 @@
-const mongoose = require("mongoose");
+// DynamoDB: No schema or model definitions needed.
+// This file provides the table name and a helper for building node registry items for DynamoDB.
 
-const NodeRegistrySchema = new mongoose.Schema({
-  url: { type: String, required: true, unique: true },
-  region: { type: String },
-  contact: { type: String },
-  lastSyncAt: { type: Date, default: null }
-});
+const NODE_REGISTRY_TABLE_NAME = "NodeRegistry";
 
-module.exports = mongoose.model("NodeRegistry", NodeRegistrySchema);
+/**
+ * Helper to create a node registry item for DynamoDB.
+ * @param {Object} params
+ * @param {string} url - Unique URL for the node (can be used as partition key)
+ * @param {string} region
+ * @param {string} contact
+ * @param {string|null} lastSyncAt - ISO string or null
+ * @returns {Object}
+ */
+function createNodeRegistryItem({
+  url,
+  region,
+  contact,
+  lastSyncAt = null
+}) {
+  return {
+    url,        // Partition key for DynamoDB table
+    region,
+    contact,
+    lastSyncAt, // Should be an ISO string or null
+  };
+}
+
+module.exports = {
+  NODE_REGISTRY_TABLE_NAME,
+  createNodeRegistryItem
+};
