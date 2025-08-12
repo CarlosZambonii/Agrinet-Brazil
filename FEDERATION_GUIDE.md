@@ -14,7 +14,7 @@ Based on Agrinet’s Linux-like protocol-first design, all tooling here respects
 
 - Linux VPS or local server (Ubuntu 20.04+, ARM or x86_64)
 - Node.js v18+
-- MongoDB 5+
+- AWS DynamoDB 5+
 - Git installed
 - PM2 or systemd to manage background services
 - Recommended: Nginx reverse proxy (for TLS and domain routing)
@@ -26,7 +26,7 @@ Based on Agrinet’s Linux-like protocol-first design, all tooling here respects
 ### install.sh (1st-time setup)
 ```bash
 #!/bin/bash
-sudo apt update && sudo apt install -y nodejs npm git mongodb
+sudo apt update && sudo apt install -y nodejs npm git dynamodb
 
 git clone https://github.com/NTARI-ForgeLab/Fruitful.git 
 cd Fruitful/backend
@@ -58,7 +58,7 @@ Each new peer node should:
 1. Clone the protocol backend
 2. Configure their .env file with:
    - JWT_SECRET
-   - MONGO_URI
+   - AWS_SECRET
    - STRIPE_KEYS (optional)
 3. Start the federation background job:
    - Schedule federationSyncJob.js (via PM2 or cron)
@@ -119,7 +119,7 @@ II. Agrinet is licensed under GNU GPL v3.0. Your fork:
 
 ## 📊 6. Community Tools in This Release
 
-- trendsRoutes.js → /trends/* (AI + MongoDB insights)
+- trendsRoutes.js → /trends/* (AI + DynamoDB insights)
 - depositRoutes.js → Local wallet + Stripe support
 - agrotourismRoutes.js → Event + image listings
 - transactionLog.js → Auditable events across escrow/rating
