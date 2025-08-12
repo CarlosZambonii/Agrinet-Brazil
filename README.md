@@ -113,4 +113,4 @@ MIT License – Feel free to modify and share. 📜
 ## Contact & Support
 - NTARI https://www.ntari.org/ 
 - Email - tech@ntari.org
-- Lounge - [Join our community for discussions!](https://www.ntari.org/group-page/the-agrinet-project/discussion) 
+- Slack - [Join our community for discussions!](https://ntari.slack.com) 
