@@ -1,9 +1,7 @@
 const axios = require("axios");
 const NodeRegistry = require("../models/nodeRegistry");
 const federationRoutes = require("../routes/federationRoutes");
-const Listing = require("../models/marketplace/listing");
-const Transaction = require("../models/transaction");
-const User = require("../models/user");
+const Listing = require("../marketplace/models/listings");
 
 const upsertMany = async (Model, items, key = "_id") => {
   for (let item of items) {
@@ -21,11 +19,9 @@ const syncFromPeers = async () => {
     const nodes = await NodeRegistry.find();
     for (let node of nodes) {
       const res = await axios.get(`${node.nodeUrl}/federation/export`);
-      const { listings, transactions, users } = res.data;
+      const { listings } = res.data;
 
       if (listings) await upsertMany(Listing, listings);
-      if (transactions) await upsertMany(Transaction, transactions);
-      if (users) await upsertMany(User, users);
 
       console.log(`✔ Synced data from node: ${node.nodeUrl}`);
     }

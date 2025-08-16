@@ -1,30 +1,25 @@
 const express = require('express');
 const router = express.Router();
-
-const Notification = require("../models/notifications");
+const crypto = require('crypto');
+const Notification = require('../models/notifications');
 const { addPingJob } = require('../bull/pingJobs');
-const Transaction = require("../models/transaction");
+const docClient = require('../lib/dynamodbClient');
+const { TRANSACTION_TABLE_NAME } = require('../models/transaction');
 
 // POST /api/transactions - create a new transaction and send notification
 router.post('/transactions', async (req, res) => {
   try {
-    // Get transaction data from request body
     const transactionData = req.body;
+    const id = crypto.randomUUID();
+    const item = { id, ...transactionData };
+    await docClient.put({ TableName: TRANSACTION_TABLE_NAME, Item: item }).promise();
 
-    // Create a new transaction instance
-    const newTransaction = new Transaction(transactionData);
-
-    // Save the new transaction to the database
-    await newTransaction.save();
-
-    // Create a notification for the buyer
     await Notification.create({
-      userId: newTransaction.buyerId,
-      message: `Your transaction ${newTransaction._id} has been initiated.`
+      userId: item.buyerId || item.consumerId,
+      message: `Your transaction ${id} has been initiated.`
     });
 
-    // Add a ping job for this transaction
-    addPingJob(newTransaction._id);
+    addPingJob(id);
 
     res.status(201).json({ message: 'Transaction created and notification sent.' });
   } catch (error) {
