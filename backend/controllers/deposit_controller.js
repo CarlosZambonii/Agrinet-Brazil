@@ -91,7 +91,10 @@ exports.withdrawAccount = async (req, res) => {
         'SET balance = balance - :amount, transactionHistory = list_append(if_not_exists(transactionHistory, :empty_list), :entry)',
       ConditionExpression: 'attribute_exists(userId) AND balance >= :amount',
       ExpressionAttributeValues: {
+      ConditionExpression: 'attribute_exists(userId) AND if_not_exists(balance, :zero) >= :amount',
+      ExpressionAttributeValues: {
         ':amount': numericAmount,
+        ':zero': 0,
         ':entry': [
           {
             type: 'withdraw',
