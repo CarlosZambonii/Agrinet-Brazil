@@ -49,7 +49,13 @@ router.post('/', async (req, res) => {
     const { password: _pwd, ...user } = item;
     res.status(201).json({ message: 'User created', user });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to create user' });
+    // Log the error for debugging
+    console.error('Error creating user:', err);
+    // Provide more specific error information if available
+    if (err.code === 'ValidationException') {
+      return res.status(400).json({ error: 'Validation error', details: err.message });
+    }
+    res.status(500).json({ error: err.message || 'Failed to create user' });
   }
 });
 
