@@ -25,7 +25,14 @@ require.cache[keyModelPath] = {
     getKeyByValue: mock.fn(),
     updateKey: mock.fn()
   },
-  children: []
+// Use mock.import to mock required modules instead of patching Module internals
+
+// Mock the key model functions as required
+const keyModelMock = {
+  createKeyItem: mock.fn(),
+  putKey: mock.fn(),
+  getKeyByValue: mock.fn(),
+  updateKey: mock.fn()
 };
 
 // In-memory store for keys
