@@ -14,7 +14,8 @@ function createUserItem({
   verificationCode,
   location,
   role = "consumer",
-  reputationScore = 0
+  reputationScore = 0,
+  reputationWeight = 0
 }) {
   return {
     id, // Partition key for DynamoDB table
@@ -26,7 +27,8 @@ function createUserItem({
     verificationCode,
     location,
     role,
-    reputationScore
+    reputationScore,
+    reputationWeight
   };
 }
 
