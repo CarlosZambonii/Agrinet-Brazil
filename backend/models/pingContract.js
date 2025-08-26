@@ -64,14 +64,20 @@ function createPingContractItem({
 
 /** Add a negotiation entry */
 function addNegotiation(contract, { partyId, message, timestamp = new Date().toISOString() }) {
-  contract.negotiationHistory.push({ partyId, message, timestamp });
-  return contract;
+  const negotiationHistory = [
+    ...(contract.negotiationHistory || []),
+    { partyId, message, timestamp }
+  ];
+  return { ...contract, negotiationHistory };
 }
 
 /** Add a digital signature */
 function addSignature(contract, { partyId, signature, signedAt = new Date().toISOString() }) {
-  contract.signatures.push({ partyId, signature, signedAt });
-  return contract;
+  const signatures = [
+    ...(contract.signatures || []),
+    { partyId, signature, signedAt }
+  ];
+  return { ...contract, signatures };
 }
 
 /** Add a performance update with optional attachments (max 5) */
