@@ -85,8 +85,9 @@ function addPerformanceUpdate(contract, { update, attachments = [], timestamp = 
   if (attachments.length > 5) {
     throw new Error('Attachments limit exceeded (max 5)');
   }
-  contract.performanceUpdates.push({ update, attachments, timestamp });
-  return contract;
+  const performanceUpdates = Array.isArray(contract.performanceUpdates) ? [...contract.performanceUpdates] : [];
+  performanceUpdates.push({ update, attachments, timestamp });
+  return { ...contract, performanceUpdates };
 }
 
 module.exports = {
