@@ -9,9 +9,12 @@ class BroadcastService {
 
   broadcast(message) {
     const msg = { priority: 0, ...message };
-    this.queue.push(msg);
-    // prioritize: higher priority first
-    this.queue.sort((a, b) => b.priority - a.priority);
+    // Insert msg into queue in order (higher priority first)
+    let insertIdx = 0;
+    while (insertIdx < this.queue.length && this.queue[insertIdx].priority >= msg.priority) {
+      insertIdx++;
+    }
+    this.queue.splice(insertIdx, 0, msg);
     const next = this.queue.shift();
     const deliveries = [];
     subscriberManager.subscribers.forEach((prefs, id) => {
