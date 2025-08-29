@@ -52,8 +52,9 @@ export default function InputBox() {
   };
 
   const voice = () => {
-    if (!('webkitSpeechRecognition' in window)) return;
-    const rec = new webkitSpeechRecognition();
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+    const rec = new SpeechRecognition();
     rec.lang = 'en-US';
     rec.onresult = (e) => {
       setText((t) => t + e.results[0][0].transcript);
