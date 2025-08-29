@@ -2,26 +2,53 @@ import React, { useState } from 'react';
 import { useStore } from '../store.js';
 
 export default function InputBox() {
-  const { dispatch } = useStore();
+  const { state, dispatch } = useStore();
   const [text, setText] = useState('');
   const [file, setFile] = useState(null);
+  const [fileData, setFileData] = useState('');
 
   const send = async () => {
-    if (!text && !file) return;
+    if (!state.currentConversation || (!text && !file)) return;
     try {
-      const payload = { from: 'user', to: 'assistant', content: text, type: file ? 'file' : 'text' };
-      const res = await fetch('/messages', {
+      const payload = {
+        from: 'user',
+        to: 'assistant',
+        content: text,
+        type: file ? 'file' : 'text',
+      };
+      if (file) {
+        payload.file = {
+          name: file.name,
+          type: file.type,
+          data: fileData,
+        };
+      }
+      const res = await fetch(`/messages/${state.currentConversation.id}`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': import.meta.env.VITE_API_KEY,
+        },
         body: JSON.stringify(payload),
-        headers: { 'Content-Type': 'application/json' }
       });
       const msg = await res.json();
       dispatch({ type: 'ADD_MESSAGE', message: msg });
       setText('');
       setFile(null);
+      setFileData('');
     } catch (e) {
       console.error(e);
     }
+  };
+
+  const handleFile = (f) => {
+    setFile(f);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result.split(',')[1];
+      setFileData(base64);
+    };
+    reader.readAsDataURL(f);
   };
 
   const voice = () => {
@@ -40,7 +67,7 @@ export default function InputBox() {
         type="file"
         className="hidden"
         id="file-input"
-        onChange={(e) => setFile(e.target.files[0])}
+        onChange={(e) => handleFile(e.target.files[0])}
       />
       <button onClick={() => document.getElementById('file-input').click()} className="p-2" title="Attach">
         📎

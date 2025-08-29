@@ -14,6 +14,10 @@ function reducer(state, action) {
       return { ...state, messages: [...state.messages, action.message] };
     case 'SET_MESSAGES':
       return { ...state, messages: action.messages };
+    case 'SET_CONVERSATIONS':
+      return { ...state, conversations: action.conversations };
+    case 'SET_CURRENT_CONVERSATION':
+      return { ...state, currentConversation: action.conversation };
     case 'TOGGLE_SIDEBAR':
       return { ...state, sidebarOpen: !state.sidebarOpen };
     case 'SET_THEME':

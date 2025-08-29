@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const commController = require('../controllers/communication_controller');
+const auth = require('../middleware/authMiddleware');
 
-router.post('/', commController.sendMessage);
-router.get('/:userId', commController.listMessages);
+router.use(auth);
+router.post('/:conversationId', commController.sendMessage);
+router.get('/:conversationId', commController.listMessages);
 
 module.exports = router;
