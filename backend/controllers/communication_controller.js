@@ -1,8 +1,11 @@
 const Message = require('../models/message');
 
 exports.sendMessage = (req, res) => {
-  const { from, to, message } = req.body;
-  const msg = Message.sendMessage(from, to, message);
+  const { from, to, content, type } = req.body;
+  const msg = Message.sendMessage(from, to, content, type);
+  if (global.io) {
+    global.io.emit('message', msg);
+  }
   res.status(201).json(msg);
 };
 
