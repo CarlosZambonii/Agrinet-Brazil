@@ -10,6 +10,7 @@ frontend:
         - npm ci
     build:
       commands:
+        - cd frontend/chat-ui
         - npm run build
   artifacts:
     baseDirectory: frontend/chat-ui/dist
