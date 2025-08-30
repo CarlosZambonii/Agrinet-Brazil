@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { useStore } from '../store.js';
+import { useStore } from '../store';
 
 export default function Sidebar() {
   const { state, dispatch } = useStore();

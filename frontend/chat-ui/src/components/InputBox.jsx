@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useStore } from '../store.js';
+import { useStore } from '../store';
 
 export default function InputBox() {
   const { state, dispatch } = useStore();

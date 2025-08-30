@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useStore } from '../store.js';
+import { useStore } from '../store';
 
 export default function TopBar() {
   const { state, dispatch } = useStore();
