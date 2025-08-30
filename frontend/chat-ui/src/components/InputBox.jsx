@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useStore } from '../store';
 
 export default function InputBox() {
@@ -6,15 +6,18 @@ export default function InputBox() {
   const [text, setText] = useState('');
   const [file, setFile] = useState(null);
   const [fileData, setFileData] = useState('');
+  const [pending, setPending] = useState(false);
+  const fileInputRef = useRef();
 
   const send = async () => {
-    if (!state.currentConversation || (!text && !file)) return;
+    if (!state.currentConversation || (!text && !file) || pending) return;
+    setPending(true);
     try {
       const payload = {
-        from: 'user',
-        to: 'assistant',
+        role: 'user',
         content: text,
         type: file ? 'file' : 'text',
+        timestamp: Date.now(),
       };
       if (file) {
         payload.file = {
@@ -23,7 +26,7 @@ export default function InputBox() {
           data: fileData,
         };
       }
-      const res = await fetch(`/messages/${state.currentConversation.id}`, {
+      await fetch(`/messages/${state.currentConversation.id}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -31,22 +34,26 @@ export default function InputBox() {
         },
         body: JSON.stringify(payload),
       });
-      const msg = await res.json();
-      dispatch({ type: 'ADD_MESSAGE', message: msg });
+      dispatch({ type: 'ADD_MESSAGE', message: { id: Date.now().toString(), ...payload } });
       setText('');
       setFile(null);
       setFileData('');
+      if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (e) {
       console.error(e);
+    } finally {
+      setPending(false);
     }
   };
 
   const handleFile = (f) => {
+    if (!f) return;
     setFile(f);
     const reader = new FileReader();
     reader.onload = () => {
       const base64 = reader.result.split(',')[1];
       setFileData(base64);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     };
     reader.readAsDataURL(f);
   };
@@ -65,18 +72,18 @@ export default function InputBox() {
   return (
     <div className="p-2 border-t flex items-center space-x-2">
       <input
+        ref={fileInputRef}
         type="file"
         className="hidden"
-        id="file-input"
         onChange={(e) => handleFile(e.target.files[0])}
       />
-      <button onClick={() => document.getElementById('file-input').click()} className="p-2" title="Attach">
+      <button onClick={() => fileInputRef.current?.click()} className="p-2" title="Attach" disabled={pending}>
         📎
       </button>
       {file && (
         <span className="text-sm" title={file.name}>{file.name}</span>
       )}
-      <button onClick={voice} className="p-2" title="Voice input">🎤</button>
+      <button onClick={voice} className="p-2" title="Voice input" disabled={pending}>🎤</button>
       <textarea
         className="flex-1 border rounded p-2"
         rows={1}
@@ -88,8 +95,10 @@ export default function InputBox() {
             send();
           }
         }}
+        aria-label="Chat input"
+        disabled={pending}
       />
-      <button onClick={send} className="p-2" title="Send">
+      <button onClick={send} className="p-2" title="Send" disabled={pending}>
         📨
       </button>
     </div>

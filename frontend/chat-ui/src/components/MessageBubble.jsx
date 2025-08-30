@@ -3,6 +3,7 @@ import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github.css';
+import MessageActions from './MessageActions.jsx';
 
 export default function MessageBubble({ message }) {
   const ref = useRef();
@@ -14,8 +15,9 @@ export default function MessageBubble({ message }) {
     }
   }, [message]);
 
-  const alignment = message.sender === 'user' || message.from === 'user' ? 'items-end text-right' : 'items-start text-left';
-  const bg = message.sender === 'user' || message.from === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-200';
+  const isUser = message.role === 'user' || message.sender === 'user' || message.from === 'user';
+  const alignment = isUser ? 'items-end text-right' : 'items-start text-left';
+  const bg = isUser ? 'bg-blue-500 text-white' : 'bg-gray-200';
 
   let content;
   if (message.type === 'file' && message.file) {
@@ -30,7 +32,8 @@ export default function MessageBubble({ message }) {
   }
 
   return (
-    <div className={`flex ${alignment}`}>
+    <div className={`relative flex ${alignment} group`}>
+      {!isUser && <MessageActions message={message} />}
       <div ref={ref} className={`max-w-xl p-2 rounded shadow ${bg}`}>
         {content}
       </div>
