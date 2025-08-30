@@ -6,12 +6,29 @@ const initialState = {
   currentConversation: null,
   sidebarOpen: true,
   theme: 'light',
+  memory: true,
 };
 
 function reducer(state, action) {
   switch (action.type) {
     case 'ADD_MESSAGE':
       return { ...state, messages: [...state.messages, action.message] };
+    case 'UPSERT_MESSAGE': {
+      const idx = state.messages.findIndex((m) => m.id === action.message.id);
+      if (idx >= 0) {
+        const updated = [...state.messages];
+        updated[idx] = { ...updated[idx], ...action.message };
+        return { ...state, messages: updated };
+      }
+      return { ...state, messages: [...state.messages, action.message] };
+    }
+    case 'APPEND_MESSAGE_CONTENT':
+      return {
+        ...state,
+        messages: state.messages.map((m) =>
+          m.id === action.id ? { ...m, content: (m.content || '') + action.content } : m
+        ),
+      };
     case 'SET_MESSAGES':
       return { ...state, messages: action.messages };
     case 'SET_CONVERSATIONS':
@@ -22,6 +39,8 @@ function reducer(state, action) {
       return { ...state, sidebarOpen: !state.sidebarOpen };
     case 'SET_THEME':
       return { ...state, theme: action.theme };
+    case 'TOGGLE_MEMORY':
+      return { ...state, memory: !state.memory };
     default:
       return state;
   }
