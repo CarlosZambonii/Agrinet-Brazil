@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { useStore } from '../store.js';
+import { useStore } from '../store';
 import MessageBubble from './MessageBubble.jsx';
 
 export default function ChatWindow() {

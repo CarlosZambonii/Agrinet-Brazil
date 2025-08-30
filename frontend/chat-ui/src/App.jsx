@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { StoreProvider, useStore } from './store.js';
+import { StoreProvider, useStore } from './store';
 import ChatWindow from './components/ChatWindow.jsx';
 import InputBox from './components/InputBox.jsx';
 import Sidebar from './components/Sidebar.jsx';
