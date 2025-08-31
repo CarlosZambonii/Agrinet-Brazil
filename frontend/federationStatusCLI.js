@@ -1,4 +1,8 @@
-const BASE_URL = process.env.BACKEND_URL || "http://localhost:5000";
+const dns = require("dns");
+
+dns.setDefaultResultOrder("ipv4first");
+
+const BASE_URL = process.env.BACKEND_URL || "http://127.0.0.1:5000";
 
 const colorize = (status) =>
   status === "ONLINE" ? "\x1b[32mONLINE\x1b[0m" : "\x1b[31mOFFLINE\x1b[0m";
