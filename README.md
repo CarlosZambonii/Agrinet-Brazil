@@ -46,7 +46,7 @@ Agrinet is a decentralized agricultural trading and service platform built to en
 
 ## Technology Stack
 
-- Frontend: WIX (for web interface & UI logic)
+- Frontend: React with Next.js (responsive site structure)
 - Backend: Node.js (API handling)
 - Database: Amazon DynamoDB (for storing users, contracts, and transactions)
 - Security: OAuth 2.0 / McEliese Key Cryptography
@@ -68,7 +68,18 @@ node server.js
 ```
 
 3. Deploy the frontend
-- TBD
+```
+cd frontend
+npm install
+npm run dev
+```
+
+For local development, set the `NEXT_PUBLIC_BACKEND_URL` environment variable to your backend's URL before running the frontend, for example:
+```
+NEXT_PUBLIC_BACKEND_URL=http://localhost:5000 npm run dev
+```
+Only environment variables prefixed with `NEXT_PUBLIC_` are exposed to the browser, so this prefix is required.
+Alternatively, configure a proxy so that requests to `/api` are forwarded to the backend.
 
 ### Environment Variables
 
@@ -124,6 +135,17 @@ We welcome contributions from the community! 🚀
 1. Fork the repo
 2. Create a feature branch
 3. Submit a pull request
+
+### Checking for hardcoded URLs
+
+Run the following script to detect any hardcoded `localhost` references before committing code:
+
+```bash
+./scripts/list-hardcoded-urls.sh
+```
+
+The script lists offending lines and exits with a nonzero status if any are found.
+Existing references known to be safe are tracked in `scripts/hardcoded-url-allowlist.txt`.
 
 ## License
 MIT License – Feel free to modify and share. 📜

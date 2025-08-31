@@ -1,0 +1,20 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - nvm install 20
+        - nvm use 20
+        - cd frontend/chat-ui
+        - npm ci
+    build:
+      commands:
+        - npm run build
+        - BACKEND_URL=$BACKEND_URL node ../federationStatusCLI.js
+  artifacts:
+    baseDirectory: frontend/chat-ui/dist
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - frontend/chat-ui/node_modules/**/*
