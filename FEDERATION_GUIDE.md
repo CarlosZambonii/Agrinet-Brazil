@@ -46,8 +46,11 @@ pm save
 
 Add this to crontab if you want auto-sync federation (ensure `BACKEND_URL` is set to your backend's URL):
 ```bash
+*/30 * * * * curl -s "$BACKEND_URL/federation/sync"
+=======
 */30 * * * * curl -s $BACKEND_URL/federation/sync
-```
+
+> **Note**: `BACKEND_URL` should point to your running backend instance.
 
 ---
 
