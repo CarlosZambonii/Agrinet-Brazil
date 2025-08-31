@@ -5,7 +5,11 @@ exports.sendMessage = async (req, res) => {
   const { from, to, content, type, file } = req.body;
   const msg = await Message.sendMessage(conversationId, from, to, content, type, file);
   if (global.broadcast) {
-    global.broadcast('message', msg);
+    const tokens = (msg.content || '').split(/\s+/);
+    tokens.forEach((token) => {
+      global.broadcast('message', { type: 'token', id: msg.id, token }, conversationId);
+    });
+    global.broadcast('message', { type: 'message', message: msg }, conversationId);
   }
   res.status(201).json(msg);
 };

@@ -40,6 +40,8 @@ const server = http.createServer(app);
 
 // Simple Server-Sent Events implementation
 const sseClients = new Set();
+const conversationClients = new Map();
+
 app.get('/events', (req, res) => {
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
@@ -50,9 +52,31 @@ app.get('/events', (req, res) => {
   req.on('close', () => sseClients.delete(res));
 });
 
-function broadcast(event, data) {
+app.get('/stream/:conversationId', (req, res) => {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive'
+  });
+  const { conversationId } = req.params;
+  if (!conversationClients.has(conversationId)) {
+    conversationClients.set(conversationId, new Set());
+  }
+  conversationClients.get(conversationId).add(res);
+  req.on('close', () => {
+    const set = conversationClients.get(conversationId);
+    if (set) set.delete(res);
+  });
+});
+
+function broadcast(event, data, conversationId) {
   const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-  sseClients.forEach(res => res.write(payload));
+  if (conversationId) {
+    const set = conversationClients.get(conversationId);
+    if (set) set.forEach(res => res.write(payload));
+  } else {
+    sseClients.forEach(res => res.write(payload));
+  }
 }
 global.broadcast = broadcast;
 
