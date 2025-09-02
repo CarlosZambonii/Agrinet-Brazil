@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { useStore } from '../store';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
 export default function InputBox() {
   const { state, dispatch } = useStore();
   const [text, setText] = useState('');
@@ -27,7 +29,7 @@ export default function InputBox() {
           data: fileData,
         };
       }
-      await fetch(`/messages/${state.currentConversation.id}`, {
+      await fetch(`${API_BASE_URL}/messages/${state.currentConversation.id}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
