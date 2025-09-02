@@ -1,13 +1,15 @@
 import React, { useEffect } from 'react';
 import { useStore } from '../store';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
 export default function Sidebar() {
   const { state, dispatch } = useStore();
 
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch('/conversations', {
+        const res = await fetch(`${API_BASE_URL}/conversations`, {
           headers: { 'x-api-key': import.meta.env.VITE_API_KEY }
         });
         const data = await res.json();
@@ -21,7 +23,7 @@ export default function Sidebar() {
 
   const newChat = async () => {
     try {
-      const res = await fetch('/conversations', {
+      const res = await fetch(`${API_BASE_URL}/conversations`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -39,7 +41,7 @@ export default function Sidebar() {
 
   const openConversation = async (c) => {
     try {
-      const res = await fetch(`/messages/${c.id}`, {
+      const res = await fetch(`${API_BASE_URL}/messages/${c.id}`, {
         headers: { 'x-api-key': import.meta.env.VITE_API_KEY },
       });
       const msgs = await res.json();
@@ -52,7 +54,7 @@ export default function Sidebar() {
 
   const togglePin = async (c) => {
     try {
-      await fetch(`/conversations/${c.id}/pin`, {
+      await fetch(`${API_BASE_URL}/conversations/${c.id}/pin`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

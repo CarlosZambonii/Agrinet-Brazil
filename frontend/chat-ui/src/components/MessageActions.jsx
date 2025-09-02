@@ -1,6 +1,8 @@
 import React from 'react';
 import { useStore } from '../store';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
 export default function MessageActions({ message }) {
   const { state } = useStore();
 
@@ -15,7 +17,7 @@ export default function MessageActions({ message }) {
   const regenerate = async () => {
     if (!state.currentConversation) return;
     try {
-      await fetch(`/messages/${state.currentConversation.id}/regenerate`, {
+      await fetch(`${API_BASE_URL}/messages/${state.currentConversation.id}/regenerate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -30,7 +32,7 @@ export default function MessageActions({ message }) {
 
   const feedback = async (value) => {
     try {
-      await fetch('/feedback', {
+      await fetch(`${API_BASE_URL}/feedback`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
