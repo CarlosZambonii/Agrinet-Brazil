@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useStore } from '../store';
 import { API_BASE_URL } from '../api';
+import { post } from '../api';
 
 export default function InputBox() {
   const { state, dispatch } = useStore();
@@ -28,14 +29,7 @@ export default function InputBox() {
           data: fileData,
         };
       }
-      await fetch(`${API_BASE_URL}/messages/${state.currentConversation.id}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': import.meta.env.VITE_API_KEY,
-        },
-        body: JSON.stringify(payload),
-      });
+      await post(`/messages/${state.currentConversation.id}`, payload);
       dispatch({ type: 'ADD_MESSAGE', message: { id: Date.now().toString(), ...payload } });
       setText('');
       setFile(null);
