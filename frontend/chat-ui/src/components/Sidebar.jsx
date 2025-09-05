@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { useStore } from '../store';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+import { get, post } from '../api';
 
 export default function Sidebar() {
   const { state, dispatch } = useStore();
@@ -9,10 +8,7 @@ export default function Sidebar() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/conversations`, {
-          headers: { 'x-api-key': import.meta.env.VITE_API_KEY }
-        });
-        const data = await res.json();
+        const data = await get('/conversations');
         dispatch({ type: 'SET_CONVERSATIONS', conversations: data });
       } catch (e) {
         console.error(e);
@@ -23,15 +19,7 @@ export default function Sidebar() {
 
   const newChat = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/conversations`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': import.meta.env.VITE_API_KEY,
-        },
-        body: JSON.stringify({}),
-      });
-      const convo = await res.json();
+      const convo = await post('/conversations', {});
       dispatch({ type: 'SET_CURRENT_CONVERSATION', conversation: convo });
       dispatch({ type: 'SET_MESSAGES', messages: [] });
     } catch (e) {
@@ -41,10 +29,7 @@ export default function Sidebar() {
 
   const openConversation = async (c) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/messages/${c.id}`, {
-        headers: { 'x-api-key': import.meta.env.VITE_API_KEY },
-      });
-      const msgs = await res.json();
+      const msgs = await get(`/messages/${c.id}`);
       dispatch({ type: 'SET_CURRENT_CONVERSATION', conversation: c });
       dispatch({ type: 'SET_MESSAGES', messages: msgs });
     } catch (e) {
@@ -54,14 +39,7 @@ export default function Sidebar() {
 
   const togglePin = async (c) => {
     try {
-      await fetch(`${API_BASE_URL}/conversations/${c.id}/pin`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': import.meta.env.VITE_API_KEY,
-        },
-        body: JSON.stringify({ pinned: !c.pinned }),
-      });
+      await post(`/conversations/${c.id}/pin`, { pinned: !c.pinned });
       const updated = { ...c, pinned: !c.pinned };
       dispatch({
         type: 'SET_CONVERSATIONS',
