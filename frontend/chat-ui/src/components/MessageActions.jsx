@@ -3,8 +3,7 @@ import { useStore } from '../store';
 
 /** @typedef {import('../types').Message} Message */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
-import { API_BASE_URL } from '../api';
+import { post } from '../api';
 
 /**
  * Action buttons associated with a message.
@@ -24,13 +23,8 @@ export default function MessageActions({ message }) {
   const regenerate = async () => {
     if (!state.currentConversation) return;
     try {
-      await fetch(`${API_BASE_URL}/messages/${state.currentConversation.id}/regenerate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': import.meta.env.VITE_API_KEY,
-        },
-        body: JSON.stringify({ messageId: message.id }),
+      await post(`/messages/${state.currentConversation.id}/regenerate`, {
+        messageId: message.id,
       });
     } catch (e) {
       console.error(e);
@@ -39,14 +33,7 @@ export default function MessageActions({ message }) {
 
   const feedback = async (value) => {
     try {
-      await fetch(`${API_BASE_URL}/feedback`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': import.meta.env.VITE_API_KEY,
-        },
-        body: JSON.stringify({ messageId: message.id, value }),
-      });
+      await post('/feedback', { messageId: message.id, value });
     } catch (e) {
       console.error(e);
     }
