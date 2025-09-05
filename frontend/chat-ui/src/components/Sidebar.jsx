@@ -1,8 +1,17 @@
 import React, { useEffect } from 'react';
 import { useStore } from '../store';
 
+/**
+ * @typedef {import('../types').Conversation} Conversation
+ * @typedef {import('../types').Message} Message
+ */
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
+/**
+ * Sidebar containing conversation list and controls.
+ * @returns {JSX.Element}
+ */
 export default function Sidebar() {
   const { state, dispatch } = useStore();
 
@@ -39,19 +48,27 @@ export default function Sidebar() {
     }
   };
 
+  /**
+   * Load a conversation and its messages.
+   * @param {Conversation} c
+   */
   const openConversation = async (c) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/messages/${c.id}`, {
-        headers: { 'x-api-key': import.meta.env.VITE_API_KEY },
-      });
-      const msgs = await res.json();
-      dispatch({ type: 'SET_CURRENT_CONVERSATION', conversation: c });
-      dispatch({ type: 'SET_MESSAGES', messages: msgs });
+        const res = await fetch(`${API_BASE_URL}/messages/${c.id}`, {
+          headers: { 'x-api-key': import.meta.env.VITE_API_KEY },
+        });
+        const msgs = /** @type {Message[]} */ (await res.json());
+        dispatch({ type: 'SET_CURRENT_CONVERSATION', conversation: c });
+        dispatch({ type: 'SET_MESSAGES', messages: msgs });
     } catch (e) {
       console.error(e);
     }
   };
 
+  /**
+   * Toggle the pinned state of a conversation.
+   * @param {Conversation} c
+   */
   const togglePin = async (c) => {
     try {
       await fetch(`${API_BASE_URL}/conversations/${c.id}/pin`, {
@@ -72,7 +89,9 @@ export default function Sidebar() {
     }
   };
 
+  /** @type {Conversation[]} */
   const pinned = state.conversations.filter((c) => c.pinned);
+  /** @type {Conversation[]} */
   const others = state.conversations.filter((c) => !c.pinned);
 
   return (
