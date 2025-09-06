@@ -41,8 +41,8 @@ export const post = (path, body) => request('POST', path, body);
 export const put = (path, body) => request('PUT', path, body);
 export const del = (path) => request('DELETE', path);
 
-// Create an EventSource for SSE. If the server does not accept headers for SSE,
-// the API key will be appended as a query parameter named `x-api-key`.
+// Create an EventSource for SSE. Many servers don't accept custom headers for SSE,
+// so we append the API key as a query parameter named `x-api-key` when present.
 export function stream(path) {
   let url = buildUrl(path);
   if (API_KEY) {
@@ -52,4 +52,4 @@ export function stream(path) {
   return new EventSource(url);
 }
 
-export default { get, post, put, del, stream;
+export default { get, post, put, del, stream };
