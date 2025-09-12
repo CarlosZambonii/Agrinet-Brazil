@@ -14,7 +14,9 @@ export default function InputBox() {
     if (!state.currentConversation || (!text && !file) || pending) return;
     setPending(true);
     try {
+      const id = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString();
       const payload = {
+        id,
         from: 'user',
         to: 'assistant',
         content: text,
@@ -29,7 +31,7 @@ export default function InputBox() {
         };
       }
       await post(`/messages/${state.currentConversation.id}`, payload);
-      dispatch({ type: 'ADD_MESSAGE', message: { id: Date.now().toString(), ...payload } });
+      dispatch({ type: 'ADD_MESSAGE', message: payload });
       setText('');
       setFile(null);
       setFileData('');

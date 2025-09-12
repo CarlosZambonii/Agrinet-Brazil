@@ -11,7 +11,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useStore } from '../store';
 import MessageBubble from './MessageBubble.jsx';
-import { API_BASE_URL } from '../api';
+import { stream } from '../api';
 
 export default function ChatWindow() {
   const { state, dispatch } = useStore();
@@ -23,12 +23,7 @@ export default function ChatWindow() {
 
   useEffect(() => {
     if (!state.currentConversation) return;
-    const url = new URL(`${API_BASE_URL}/stream/${state.currentConversation.id}`);
-    const apiKey = import.meta.env.VITE_API_KEY;
-    if (apiKey) {
-      url.searchParams.set('api_key', apiKey);
-    }
-    const events = new EventSource(url.toString());
+    const events = stream(`/stream/${state.currentConversation.id}`);
 
     const handleToken = (e) => {
       try {
