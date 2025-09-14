@@ -9,7 +9,9 @@ export default function ProfileMenu() {
   const toggleMemory = () => dispatch({ type: 'TOGGLE_MEMORY' });
 
   return (
-    <div className="absolute bottom-2 left-2">
+    <div
+      className={`fixed bottom-2 z-10 transition-all ${state.sidebarOpen ? 'left-64' : 'left-2'}`}
+    >
       <button className="p-2 rounded-full" onClick={() => setOpen((o) => !o)} title="Profile">
         ⚙️
       </button>
