@@ -67,7 +67,7 @@ export default function InputBox() {
   };
 
   return (
-    <div className="p-2 border-t flex items-center space-x-2">
+    <div className="p-2 border-t flex flex-wrap items-center gap-2 w-full">
       <input
         ref={fileInputRef}
         type="file"
