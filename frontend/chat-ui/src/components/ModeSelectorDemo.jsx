@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useMemo, useReducer, useRef, useState } from "react";
+import React, { useEffect, useId, useReducer, useRef, useState } from "react";
 import api, { API_BASE_URL } from "../api";
 
 /**
@@ -592,12 +592,18 @@ function ChatComposer() {
           dispatch({ type: "SET_RESULTS", results: { text: res.text, citations: res.citations } });
         } catch (error) {
           console.error("Deep research request failed", error);
+          const description =
+            error instanceof Error && error.message
+              ? error.message
+              : typeof error === "string" && error.length
+              ? error
+              : "Try again in a moment.";
           dispatch({
             type: "ADD_TOAST",
             toast: {
               id: uid("toast"),
               title: "Deep research failed",
-              desc: "Try again in a moment.",
+              desc: description,
               kind: "error",
             },
           });
