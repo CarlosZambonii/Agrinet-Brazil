@@ -91,7 +91,7 @@ export default function InputBox() {
         title="Voice input"
         disabled={pending}
       >
-        🎤
+        🗣
       </button>
       <textarea
         className="flex-1 min-w-0 border rounded p-2"
