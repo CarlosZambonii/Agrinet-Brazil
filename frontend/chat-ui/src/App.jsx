@@ -1,4 +1,9 @@
 import React, { useEffect } from 'react';
+import { Amplify } from 'aws-amplify';
+import awsExports from '../../aws-exports';
+// Configure Amplify with backend settings
+Amplify.configure(awsExports);
+
 import { StoreProvider, useStore } from './store';
 import ChatWindow from './components/ChatWindow.jsx';
 import InputBox from './components/InputBox.jsx';
