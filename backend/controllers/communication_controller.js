@@ -1,29 +1,84 @@
 const Message = require('../models/message');
+const agrinetResponder = require('../services/agrinetResponder');
+const openAIResponder = require('../services/openAIResponder');
 
-exports.sendMessage = async (req, res) => {
-  const { conversationId } = req.params;
-  const { from, to, content, type, file } = req.body;
-  
-  // Create and persist the message
-  const msg = await Message.sendMessage(conversationId, { from, to, content, type, file });
+function broadcastMessage(conversationId, msg) {
+  if (!msg) return;
 
-  // Stream tokenized parts over SSE if a broadcast function is available
   if (global.broadcast) {
     const tokens = (msg.content || '').split(/\s+/);
     tokens.forEach((token) => {
       global.broadcast('message', { type: 'token', id: msg.id, token }, conversationId);
     });
 
-    // Send the final message object after streaming tokens
     global.broadcast('message', { type: 'message', message: msg }, conversationId);
   }
 
-  // Fallback / additional emitter used elsewhere in the codebase
   if (global.emitMessage) {
     global.emitMessage(conversationId, msg);
   }
+}
 
-  res.status(201).json(msg);
+async function persistAssistantMessage(conversationId, reply) {
+  if (!reply || !reply.content) return null;
+
+  const assistantMsg = await Message.sendMessage(conversationId, {
+    from: reply.from || 'assistant',
+    to: reply.to,
+    content: reply.content,
+    type: reply.type || 'text',
+    file: reply.file,
+  });
+
+  broadcastMessage(conversationId, assistantMsg);
+  return assistantMsg;
+}
+
+function shouldAutoRespond({ from, type }) {
+  if (type && type !== 'text') return false;
+  if (!from) return true;
+  const normalized = String(from).toLowerCase();
+  return ['user', 'client', 'farmer'].includes(normalized);
+}
+
+exports.sendMessage = async (req, res) => {
+  const { conversationId } = req.params;
+  const { from, to, content, type, file } = req.body;
+
+  // Create and persist the message
+  const msg = await Message.sendMessage(conversationId, { from, to, content, type, file });
+
+  broadcastMessage(conversationId, msg);
+
+  let assistantReply = null;
+
+  if (shouldAutoRespond({ from, type })) {
+    const latestContent = msg.content || '';
+
+    if (agrinetResponder.shouldHandle(latestContent)) {
+      const reply = await agrinetResponder.generateResponse({
+        conversationId,
+        message: msg,
+      });
+      assistantReply = await persistAssistantMessage(conversationId, reply);
+    } else {
+      const historyMessages = await Message.listMessages(conversationId);
+      const chatHistory = historyMessages.map((m) => ({
+        role: String(m.from || '').toLowerCase() === 'assistant' ? 'assistant' : 'user',
+        content: m.content || '',
+      }));
+
+      const reply = await openAIResponder.generateResponse({
+        conversationId,
+        message: msg,
+        chatHistory,
+      });
+
+      assistantReply = await persistAssistantMessage(conversationId, reply);
+    }
+  }
+
+  res.status(201).json({ message: msg, reply: assistantReply });
 };
 
 exports.listMessages = async (req, res) => {
