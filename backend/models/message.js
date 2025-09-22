@@ -67,4 +67,3 @@ function setDocClient(client) {
 }
 
 module.exports = { sendMessage, listMessages, removeByConversation, setDocClient };
-
