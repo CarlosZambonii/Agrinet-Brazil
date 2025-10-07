@@ -21,7 +21,6 @@ export default function ThinkingTicker({ active }) {
       setDisplay('');
       cancelAnimationFrame(frameRef.current);
       startRef.current = null;
-      return () => {};
     }
 
     bufferRef.current = MESSAGES[phraseRef.current % MESSAGES.length];
