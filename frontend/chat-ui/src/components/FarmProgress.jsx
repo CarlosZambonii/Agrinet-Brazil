@@ -48,7 +48,7 @@ const STAGES = [
   {
     id: 'harvest',
     label: 'Harvest',
-    caption: 'Summarise your plan',
+    caption: 'Summarize your plan',
     threshold: 9,
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true">
