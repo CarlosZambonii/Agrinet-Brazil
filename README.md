@@ -178,7 +178,7 @@ The script lists offending lines and exits with a nonzero status if any are foun
 Existing references known to be safe are tracked in `scripts/hardcoded-url-allowlist.txt`.
 
 ## License
-MIT License – Feel free to modify and share. 📜
+AGPL, GNU-3�
 
 ## Contact & Support
 - NTARI https://www.ntari.org/ 
