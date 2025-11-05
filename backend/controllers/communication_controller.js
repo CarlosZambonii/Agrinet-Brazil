@@ -1,17 +1,28 @@
-const { randomUUID } = require('crypto');
 const Message = require('../models/message');
 const agrinetResponder = require('../services/agrinetResponder');
 const openAIResponder = require('../services/openAIResponder');
 
-function broadcastMessage(conversationId, msg) {
+function broadcastMessage(conversationId, msg, options = {}) {
   if (!msg) return;
 
-  if (global.broadcast) {
-    const tokens = (msg.content || '').split(/\s+/);
-    tokens.forEach((token) => {
-      global.broadcast('message', { type: 'token', id: msg.id, token }, conversationId);
-    });
+  const { emitTokens = true } = options;
+  const tokens = emitTokens
+    ? (msg.content || '').match(/\s*\S+|\s+/g) || []
+    : [];
 
+  if (emitTokens && global.broadcast) {
+    tokens.forEach((token) => {
+      global.broadcast('token', { id: msg.id, token }, conversationId);
+    });
+  }
+
+  if (emitTokens && global.emitToken) {
+    tokens.forEach((token) => {
+      global.emitToken(conversationId, msg.id, token);
+    });
+  }
+
+  if (global.broadcast) {
     global.broadcast('message', { type: 'message', message: msg }, conversationId);
   }
   if (global.emitMessage) {
@@ -22,15 +33,20 @@ function broadcastMessage(conversationId, msg) {
 async function persistAssistantMessage(conversationId, reply) {
   if (!reply || !reply.content) return null;
 
+  const replyFrom = reply.from || 'ai';
+  const normalizedFrom = replyFrom === 'assistant' ? 'ai' : replyFrom;
+  const skipTokenBroadcast = reply.streamedTokens === true;
+
   const assistantMsg = await Message.sendMessage(conversationId, {
-    from: reply.from || 'assistant',
+    id: reply.id,
+    from: normalizedFrom,
     to: reply.to,
     content: reply.content,
     type: reply.type || 'text',
     file: reply.file,
   });
 
-  broadcastMessage(conversationId, assistantMsg);
+  broadcastMessage(conversationId, assistantMsg, { emitTokens: !skipTokenBroadcast });
   return assistantMsg;
 }
 
@@ -48,7 +64,7 @@ exports.sendMessage = async (req, res) => {
   // Create and persist the message
   const msg = await Message.sendMessage(conversationId, { from, to, content, type, file });
 
-  broadcastMessage(conversationId, msg);
+  broadcastMessage(conversationId, msg, { emitTokens: false });
 
   let assistantReply = null;
 
@@ -80,9 +96,18 @@ exports.sendMessage = async (req, res) => {
     }
   }
 
-  const responsePayload = msg && typeof msg.toObject === 'function' ? msg.toObject() : { ...msg };
-  if (responsePayload && typeof responsePayload === 'object') {
-    responsePayload.reply = assistantReply;
+  const normalize = (value) => {
+    if (!value) return value;
+    if (typeof value.toObject === 'function') return value.toObject();
+    if (typeof value.toJSON === 'function') return value.toJSON();
+    return { ...value };
+  };
+
+  const responsePayload = { message: normalize(msg) };
+  const formattedReply = normalize(assistantReply);
+  if (formattedReply) {
+    responsePayload.ai = formattedReply;
+    responsePayload.reply = formattedReply;
   }
 
   res.status(201).json(responsePayload);
