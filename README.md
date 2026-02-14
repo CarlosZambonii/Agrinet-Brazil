@@ -1,4 +1,4 @@
-# agrinet-portugu-s
+# agrinet-portugues
 O Agrinet é um sistema de inteligência coletiva de código aberto para a agricultura.
 
 ## 📚 Documentação em Português
