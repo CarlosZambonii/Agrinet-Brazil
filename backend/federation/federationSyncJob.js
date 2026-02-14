@@ -1,50 +1,50 @@
+require("dotenv").config({ path: __dirname + "/../.env" });
 const axios = require("axios");
-const dynamodbClient = require("../lib/dynamodbClient");
-const { NODE_REGISTRY_TABLE_NAME } = require("./models/nodeRegistry");
+const nodeRegistryRepository = require("../repositories/nodeRegistryRepository");
 
-const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:5000";
+const syncFromPeers = async () => {
+  try {
+    const nodes = await nodeRegistryRepository.findAll();
+    const selfUrl = process.env.NODE_URL;
 
-const runFederationSync = async () => {
-   // Scan all nodes from DynamoDB table
-  const { Items: nodes } = await dynamodbClient
-    .scan({ TableName: NODE_REGISTRY_TABLE_NAME })
-    .promise();
-/*
-const { getAllNodes, saveNode } = require("./models/nodeRegistry");
+    for (const node of nodes) {
+      if (node.node_url === selfUrl) {
+        console.log(`⏭ Skipping self node: ${node.node_url}`);
+        continue;
+      }
 
-const runFederationSync = async () => {
-  const nodes = await getAllNodes();
-*/
-  for (const node of nodes) {
-    try {
-      // Fetch federation/export data from the node
-      const { data } = await axios.get(`${node.url}/federation/export`);
-      
-      // Update lastSyncAt in DynamoDB for this node
-      await axios.post(`${BACKEND_URL}/import`, data);
+      try {
+        console.log("DEBUG NODE:", node);
+        console.log("DEBUG URL:", `${node.node_url}/federation/export`);
+        console.log("SYNC API KEY:", process.env.API_KEY);
+        const res = await axios.get(`${node.node_url}/federation/export`, {
+          headers: {
+            "x-api-key": process.env.API_KEY
+          }
+        });
 
-      await dynamodbClient
-        .update({
-          TableName: NODE_REGISTRY_TABLE_NAME,
-          Key: { url: node.url },
-          UpdateExpression: "set lastSyncAt = :time",
-          ExpressionAttributeValues: {
-            ":time": new Date().toISOString(),
-          },
-        })
-        .promise();
+        const payload = res.data;
 
-      //node.lastSyncAt = new Date().toISOString();
-      //await saveNode(node);
+        await axios.post(
+          `${node.node_url}/federation/import`,
+          payload,
+          {
+            headers: {
+              "x-api-key": process.env.API_KEY
+            }
+          }
+        );
 
-      console.log(`✅ Synced with ${node.url}`);
-    } catch (err) {
-      console.error(`❌ Failed to sync with ${node.url}`);
+        await nodeRegistryRepository.updateLastSyncAt(node.node_url);
+
+        console.log(`[32m[1m✔ Synced from ${node.node_url}[0m`);
+      } catch (err) {
+        console.log(`❌ Sync failed for ${node.node_url}:`, err.message);
+      }
     }
+  } catch (err) {
+    console.error("[31m[1m❌ Federation sync error:[0m", err.message);
   }
 };
 
-// Run every 6 hours
-setInterval(runFederationSync, 6 * 60 * 60 * 1000); // 6 hours
-
-module.exports = runFederationSync;
+module.exports = { syncFromPeers };

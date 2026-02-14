@@ -2,23 +2,12 @@
 version: '3.8'
 
 services:
-  dynamodb:
-    image: amazon/dynamodb-local
-    container_name: agrinet_dynamodb
-    ports:
-      - "8000:8000"
-    command: ["-jar", "DynamoDBLocal.jar", "-sharedDb"]
-    volumes:
-      - dynamodb_data:/home/dynamodblocal/data
-
   api:
     build: ./backend
     container_name: agrinet_api
     restart: always
     ports:
       - "5000:5000"
-    depends_on:
-      - dynamodb
     environment:
       - JWT_SECRET=${JWT_SECRET}
       - STRIPE_KEY=${STRIPE_KEY}
@@ -26,7 +15,6 @@ services:
       - AWS_REGION=${AWS_REGION}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - DYNAMODB_ENDPOINT=${DYNAMODB_ENDPOINT:-http://dynamodb:8000}
     volumes:
       - ./backend:/app
     command: ["sh", "-c", "node server.js"]
@@ -34,27 +22,18 @@ services:
   federation-sync:
     build: ./backend
     container_name: agrinet_federation_sync
-    depends_on:
-      - dynamodb
     environment:
       - NODE_ID=${NODE_ID}
       - AWS_REGION=${AWS_REGION}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - DYNAMODB_ENDPOINT=${DYNAMODB_ENDPOINT:-http://dynamodb:8000}
     command: ["node", "sync/federationSyncJob.js"]
 
   key-expiry-cleaner:
     build: ./backend
     container_name: agrinet_key_cleaner
-    depends_on:
-      - dynamodb
     environment:
       - AWS_REGION=${AWS_REGION}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - DYNAMODB_ENDPOINT=${DYNAMODB_ENDPOINT:-http://dynamodb:8000}
     command: ["node", "jobs/keyExpiryCleaner.js"]
-
-volumes:
-  dynamodb_data:

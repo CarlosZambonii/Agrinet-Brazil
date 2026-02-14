@@ -1,5 +1,8 @@
+require('dotenv').config();
 const express = require("express");
 const http = require('http');
+const errorHandler = require("./middleware/errorHandler");
+
 let cors;
 try {
   cors = require("cors");
@@ -47,10 +50,6 @@ const tryMount = (route, modPath) => {
     console.warn(`Skipping ${modPath}: ${err.message}`);
   }
 };
-
-if (!minimal) {
-  tryMount("/deposit", "./routes/depositRoutes");
-}
 
 // Health Check Endpoint
 app.get('/health', (req, res) => {
@@ -133,41 +132,25 @@ app.use(authMiddleware);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
-let runFederationSync;
 if (!minimal) {
   [
-    ['/', './routes/api'],
-    ['/api/auth', './routes/authRoutes'],
-    ['/api/keys', './routes/keyRoutes'],
-    ['/api/contracts', './routes/contracts'],
-    ['/api/admin', './routes/admin'],
-    ['/api/marketplace', './marketplace/marketplace_routes'],
     ['/users', './routes/userRoutes'],
-    ['/products', './routes/products'],
-    ['/broadcast', './routes/broadcastRoutes'],
-    ['/sms', './routes/smsRoutes'],
-    ['/cart', './routes/cartRoutes'],
-    ['/orders', './routes/orderRoutes'],
-    ['/subscriptions', './routes/subscriptionRoutes'],
-    ['/conversations', './routes/conversationRoutes'],
-    ['/messages', './routes/communicationRoutes'],
-    ['/inventory', './routes/inventoryRoutes'],
-    ['/api/location', './routes/locationRoutes'],
+    ['/api/marketplace', './marketplace/marketplace_routes'],
     ['/federation', './federation/federationRoutes'],
-    ['/trends', './trends/trendsRoutes'],
   ].forEach(([route, mod]) => tryMount(route, mod));
 
-  try {
-    runFederationSync = require('./federation/federationSyncJob');
-  } catch (err) {
-    console.warn(`Federation sync disabled: ${err.message}`);
-  }
 }
+
+app.use((req, res, next) => {
+  res.status(404).json({ error: "Route not found" });
+});
+
+// Global error handler (MUST be last middleware)
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 if (require.main === module) {
   server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-  if (runFederationSync) runFederationSync(); // kicks off first run when available
 }
 
 module.exports = { app, server };

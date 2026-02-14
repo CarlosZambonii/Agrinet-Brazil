@@ -1,4 +1,3 @@
-// DynamoDB helper for Transactions table
 const TRANSACTION_TABLE_NAME = "Transactions";
 
 function createTransactionItem({
@@ -7,6 +6,7 @@ function createTransactionItem({
   sellerId,
   listingId,
   listingTitle,
+  amount,
   status = "pending",
   createdAt = new Date().toISOString(),
   buyerRated = false,
@@ -21,11 +21,12 @@ function createTransactionItem({
   escrowReleasedAt = null
 }) {
   return {
-    id, // partition key
+    id,
     buyerId,
     sellerId,
     listingId,
     listingTitle,
+    amount,
     status,
     createdAt,
     buyerRated,

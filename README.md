@@ -54,7 +54,7 @@ Agrinet is a decentralized agricultural trading and service platform built to en
 
 - Frontend: React with Next.js (responsive site structure)
 - Backend: Node.js (API handling)
-- Database: Amazon DynamoDB (for storing users, contracts, and transactions)
+- Database: MariaDB / MySQL
 - Security: OAuth 2.0 / McEliese Key Cryptography
 - Real-Time Processing: Webhooks & PING System
 
@@ -89,12 +89,8 @@ Alternatively, configure a proxy so that requests to `/api` are forwarded to the
 
 ### Environment Variables
 
-The backend now uses Amazon DynamoDB. Set the following variables in your environment or `.env` file:
+Set the following variables in your environment or `.env` file:
 
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-- `AWS_REGION`
-- `DYNAMODB_ENDPOINT` *(optional, for DynamoDB Local e.g. `http://localhost:8000`)*
 - `TWILIO_SID`
 - `TWILIO_AUTH_TOKEN`
 - `TWILIO_FROM_NUMBER`

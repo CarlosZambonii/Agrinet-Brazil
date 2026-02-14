@@ -1,5 +1,7 @@
 # 🚀 Agrinet Production Deployment & Federation Launch Kit
 
+Database: MariaDB/MySQL (SQL-based federation node)
+
 This document provides everything needed to:
 - Deploy an Agrinet node
 - Join the federation
@@ -14,7 +16,6 @@ Based on Agrinet’s Linux-like protocol-first design, all tooling here respects
 
 - Linux VPS or local server (Ubuntu 20.04+, ARM or x86_64)
 - Node.js v18+
-- AWS DynamoDB 5+
 - Git installed
 - PM2 or systemd to manage background services
 - Recommended: Nginx reverse proxy (for TLS and domain routing)
@@ -26,7 +27,7 @@ Based on Agrinet’s Linux-like protocol-first design, all tooling here respects
 ### install.sh (1st-time setup)
 ```bash
 #!/bin/bash
-sudo apt update && sudo apt install -y nodejs npm git dynamodb
+sudo apt update && sudo apt install -y nodejs npm git
 
 git clone https://github.com/NTARI-ForgeLab/Fruitful.git 
 cd Fruitful/backend
@@ -122,7 +123,6 @@ II. Agrinet is licensed under GNU GPL v3.0. Your fork:
 
 ## 📊 6. Community Tools in This Release
 
-- trendsRoutes.js → /trends/* (AI + DynamoDB insights)
 - depositRoutes.js → Local wallet + Stripe support
 - agrotourismRoutes.js → Event + image listings
 - transactionLog.js → Auditable events across escrow/rating

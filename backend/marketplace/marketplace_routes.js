@@ -1,353 +1,160 @@
 const express = require("express");
 const { randomUUID } = require("crypto");
-const docClient = require("../lib/dynamodbClient");
-const { LISTINGS_TABLE_NAME, createListingItem } = require("./models/listings");
-const {
-  BROADCAST_TABLE_NAME,
-  createBroadcastItem
-} = require("./models/broadcasts");
-const {
-  TRANSACTION_TABLE_NAME,
-  createTransactionItem
-} = require("./models/transaction");
-const { USER_TABLE_NAME } = require("../models/user");
+const listingRepository = require("../repositories/listingRepository");
+const broadcastRepository = require("../repositories/broadcastRepository");
+const transactionRepository = require("../repositories/transactionRepository");
+const userRepository = require("../repositories/userRepository");
+const asyncHandler = require('../utils/asyncHandler');
+
+const { createBroadcastItem } = require("./models/broadcasts");
+
 
 const router = express.Router();
 
 // Create a new broadcast
-router.post("/broadcasts", async (req, res) => {
-  try {
-    const id = randomUUID();
-    const item = createBroadcastItem({ id, ...req.body });
-    await docClient.put({ TableName: BROADCAST_TABLE_NAME, Item: item }).promise();
-    res
-      .status(201)
-      .json({ message: "Broadcast posted successfully", broadcast: item });
-  } catch (error) {
-    res.status(500).json({ error: "Error posting broadcast" });
-  }
-});
+router.post("/broadcasts", asyncHandler(async (req, res) => {
+  const id = randomUUID();
+  const item = createBroadcastItem({ id, ...req.body });
+  await broadcastRepository.create(item);
+  res
+    .status(201)
+    .json({ message: "Broadcast posted successfully", broadcast: item });
+}));
 
 // Retrieve all broadcast messages
-router.get("/broadcasts", async (req, res) => {
-  try {
-    const data = await docClient.scan({ TableName: BROADCAST_TABLE_NAME }).promise();
-    res.json(data.Items || []);
-  } catch (error) {
-    res.status(500).json({ error: "Error fetching broadcasts" });
-  }
-});
+router.get("/broadcasts", asyncHandler(async (req, res) => {
+  const items = await broadcastRepository.findAll();
+  res.json(items);
+}));
 
 // Create a new service listing following AgriNet protocol
-router.post("/listings", async (req, res) => {
-  try {
-    const {
-      t: title,
-      c: category,
-      d: description,
-      term,
-      med = [],
-      lr,
-      pr,
-      composting,
-      availability = [],
-      tags = [],
-      location = "",
-      userId = ""
-    } = req.body;
+router.post("/listings", asyncHandler(async (req, res) => {
+  const {
+    title,
+    category,
+    description,
+    price,
+    location,
+    userId
+  } = req.body;
 
-    if (!title || !category || !description) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
-
-    const media = Array.isArray(med) ? med.slice(0, 5) : [];
-    const autoTags = Array.from(
-      new Set([...tags, category, ...title.split(/\s+/)])
-    );
-    const id = randomUUID();
-    const item = createListingItem({
-      id,
-      userId,
-      type: "service",
-      title,
-      category,
-      description,
-      price: term,
-      location,
-      media,
-      logisticsRange: lr,
-      processingCategory: pr,
-      compostingService: composting,
-      availability,
-      tags: autoTags
-    });
-
-    await docClient.put({ TableName: LISTINGS_TABLE_NAME, Item: item }).promise();
-    res
-      .status(201)
-      .json({ message: "Service posted successfully", listing: item });
-  } catch (error) {
-    res.status(500).json({ error: "Error posting service" });
+  if (!title || !category || !description || !userId) {
+    const err = new Error("Missing required fields");
+    err.statusCode = 400;
+    throw err;
   }
-});
+
+  const id = require("crypto").randomUUID();
+
+  const listing = await listingRepository.create({
+    id,
+    userId,
+    title,
+    category,
+    description,
+    price,
+    location
+  });
+
+  res.status(201).json({
+    message: "Listing created successfully",
+    listing
+  });
+}));
 
 // Retrieve listings with filtering options
-router.get("/listings", async (req, res) => {
-  try {
-    const { location, type, minPrice, maxPrice, keyword, tag } = req.query;
-    const params = { TableName: LISTINGS_TABLE_NAME };
-    const filterExpressions = [];
-    const expressionAttributeValues = {};
-    const expressionAttributeNames = {};
-
-    if (location) {
-      filterExpressions.push("contains(#location, :location)");
-      expressionAttributeValues[":location"] = location;
-      expressionAttributeNames["#location"] = "location";
-    }
-    if (type) {
-      filterExpressions.push("#type = :type");
-      expressionAttributeValues[":type"] = type;
-      expressionAttributeNames["#type"] = "type";
-    }
-    if (minPrice) {
-      filterExpressions.push("#price >= :minPrice");
-      expressionAttributeValues[":minPrice"] = Number(minPrice);
-      expressionAttributeNames["#price"] = "price";
-    }
-    if (maxPrice) {
-      filterExpressions.push("#price <= :maxPrice");
-      expressionAttributeValues[":maxPrice"] = Number(maxPrice);
-      expressionAttributeNames["#price"] = "price";
-    }
-    if (keyword) {
-      filterExpressions.push("contains(#title, :keyword)");
-      expressionAttributeValues[":keyword"] = keyword;
-      expressionAttributeNames["#title"] = "title";
-    }
-    if (tag) {
-      filterExpressions.push("contains(#tags, :tag)");
-      expressionAttributeValues[":tag"] = tag;
-      expressionAttributeNames["#tags"] = "tags";
-    }
-
-    if (filterExpressions.length) {
-      params.FilterExpression = filterExpressions.join(" AND ");
-      params.ExpressionAttributeValues = expressionAttributeValues;
-      params.ExpressionAttributeNames = expressionAttributeNames;
-    }
-
-    const data = await docClient.scan(params).promise();
-    res.json(data.Items || []);
-  } catch (error) {
-    res.status(500).json({ error: "Error fetching listings" });
-  }
-});
+router.get("/listings", asyncHandler(async (req, res) => {
+  const listings = await listingRepository.findAll();
+  res.json(listings);
+}));
 
 // Create a new transaction
-router.post("/transactions", async (req, res) => {
-  try {
-    const id = randomUUID();
-    const item = createTransactionItem({ id, ...req.body });
-    await docClient.put({ TableName: TRANSACTION_TABLE_NAME, Item: item }).promise();
-    res
-      .status(201)
-      .json({ message: "Transaction initiated", transaction: item });
-  } catch (error) {
-    res.status(500).json({ error: "Error initiating transaction" });
-  }
-});
+const transactionService = require("../services/transactionService");
+
+router.post("/transactions", asyncHandler(async (req, res) => {
+  const result = await transactionService.createTransactionWithWalletDebit(req.body);
+  res.status(201).json(result);
+}));
+
+
 
 // Release escrow funds
-router.post("/transactions/release-escrow", async (req, res) => {
-  try {
-    const { transactionId } = req.body;
-    const { Item: transaction } = await docClient
-      .get({ TableName: TRANSACTION_TABLE_NAME, Key: { id: transactionId } })
-      .promise();
-    if (!transaction)
-      return res.status(404).json({ error: "Transaction not found" });
+router.post("/transactions/release-escrow", asyncHandler(async (req, res) => {
+  const result = await transactionService.releaseEscrow(req.body.transactionId);
+  res.json(result);
+}));
 
-    if (!transaction.buyerRated || !transaction.sellerRated) {
-      return res.status(403).json({
-        error: "Cannot release escrow until both parties rate the transaction."
-      });
-    }
 
-    const updateParams = {
-      TableName: TRANSACTION_TABLE_NAME,
-      Key: { id: transactionId },
-      UpdateExpression: "set escrowLocked = :false, escrowReleasedAt = :now",
-      ExpressionAttributeValues: {
-        ":false": false,
-        ":now": new Date().toISOString()
-      },
-      ReturnValues: "ALL_NEW"
-    };
-    const result = await docClient.update(updateParams).promise();
-    res.json({
-      message: "Escrow funds released.",
-      transaction: result.Attributes
-    });
-  } catch (error) {
-    res.status(500).json({ error: "Error releasing escrow." });
-  }
-});
 
 // Retrieve all transactions
-router.get("/transactions", async (req, res) => {
-  try {
-    const data = await docClient
-      .scan({ TableName: TRANSACTION_TABLE_NAME })
-      .promise();
-    res.json(data.Items || []);
-  } catch (error) {
-    res.status(500).json({ error: "Error fetching transactions" });
-  }
-});
+router.get("/transactions", asyncHandler(async (req, res) => {
+  const transactions = await transactionRepository.findAll();
+  res.json(transactions);
+}));
+
+
 
 // Validate dialog content
-router.post("/transactions/dialog-validate", async (req, res) => {
-  try {
-    const { transactionId, dialogNotes } = req.body;
-    const { Item: transaction } = await docClient
-      .get({ TableName: TRANSACTION_TABLE_NAME, Key: { id: transactionId } })
-      .promise();
-    if (!transaction)
-      return res.status(404).json({ error: "Transaction not found" });
+router.post("/transactions/dialog-validate", asyncHandler(async (req, res) => {
+  const { transactionId, dialogNotes } = req.body;
 
-    const { Item: buyer } = await docClient
-      .get({ TableName: USER_TABLE_NAME, Key: { id: transaction.buyerId } })
-      .promise();
-    const userReputation = buyer?.reputationScore || 0;
+  const transaction = await transactionRepository.findById(transactionId);
+  if (!transaction)
+    return res.status(404).json({ error: "Transaction not found" });
 
-    const expectedKeywords = (transaction.listingTitle || "")
-      .toLowerCase()
-      .split(" ");
-    const dialogWords = dialogNotes.toLowerCase().split(" ");
-    const matches = expectedKeywords.filter(word => dialogWords.includes(word));
-    const confidence =
-      expectedKeywords.length > 0 ? matches.length / expectedKeywords.length : 0;
+  const buyer = await userRepository.findById(transaction.buyerId);
+  const userReputation = buyer?.reputationScore || 0;
 
-    const dialogConfirmed = confidence >= 0.6 && userReputation >= 0;
-    const flaggedForReview = !dialogConfirmed;
+  const expectedKeywords = (transaction.listingTitle || "")
+    .toLowerCase()
+    .split(" ");
 
-    const updateParams = {
-      TableName: TRANSACTION_TABLE_NAME,
-      Key: { id: transactionId },
-      UpdateExpression:
-        "set dialogNotes = :notes, dialogConfirmed = :confirmed, flaggedForReview = :flagged",
-      ExpressionAttributeValues: {
-        ":notes": dialogNotes,
-        ":confirmed": dialogConfirmed,
-        ":flagged": flaggedForReview
-      },
-      ReturnValues: "ALL_NEW"
-    };
-    const result = await docClient.update(updateParams).promise();
+  const dialogWords = dialogNotes.toLowerCase().split(" ");
+  const matches = expectedKeywords.filter(word => dialogWords.includes(word));
 
-    res.json({
-      message: "Dialog validation complete",
-      dialogConfirmed: result.Attributes.dialogConfirmed,
-      flaggedForReview: result.Attributes.flaggedForReview,
-      confidence,
-      userReputation
-    });
-  } catch (error) {
-    res.status(500).json({ error: "Error validating dialog data" });
-  }
-});
+  const confidence =
+    expectedKeywords.length > 0
+      ? matches.length / expectedKeywords.length
+      : 0;
+
+  const dialogConfirmed = confidence >= 0.6 && userReputation >= 0;
+  const flaggedForReview = !dialogConfirmed;
+
+  const updated = await transactionRepository.updateDialog(
+    transactionId,
+    dialogNotes,
+    dialogConfirmed,
+    flaggedForReview
+  );
+
+  res.json({
+    message: "Dialog validation complete",
+    dialogConfirmed: updated.dialogConfirmed,
+    flaggedForReview: updated.flaggedForReview,
+    confidence,
+    userReputation
+  });
+}));
+
 
 // Submit a rating
-router.post("/transactions/rate", async (req, res) => {
-  try {
-    const { transactionId, rating, role } = req.body;
-    if (rating < -1 || rating > 4)
-      return res
-        .status(400)
-        .json({ error: "Invalid rating value. Must be between -1 and 4." });
+router.post("/transactions/rate", asyncHandler(async (req, res) => {
+  const { transactionId, rating, role } = req.body;
 
-    const { Item: transaction } = await docClient
-      .get({ TableName: TRANSACTION_TABLE_NAME, Key: { id: transactionId } })
-      .promise();
-    if (!transaction)
-      return res.status(404).json({ error: "Transaction not found" });
+  const result = await transactionService.rateTransaction(
+    transactionId,
+    rating,
+    role
+  );
 
-    let userIdToRate;
-    let updateExpression;
-    const expressionAttributeValues = { ":true": true };
+  res.json(result);
+}));
 
-    if (role === "buyer" && !transaction.buyerRated) {
-      userIdToRate = transaction.sellerId;
-      updateExpression = "set buyerRated = :true";
-    } else if (role === "seller" && !transaction.sellerRated) {
-      userIdToRate = transaction.buyerId;
-      updateExpression = "set sellerRated = :true";
-    } else {
-      return res.status(400).json({ error: "Already rated or invalid role" });
-    }
-
-    const userUpdateParams = {
-      TableName: USER_TABLE_NAME,
-      Key: { id: userIdToRate },
-      UpdateExpression:
-        "set reputationScore = if_not_exists(reputationScore, :zero) + :rating",
-      ExpressionAttributeValues: { ":rating": rating, ":zero": 0 },
-      ReturnValues: "UPDATED_NEW"
-    };
-    const userResult = await docClient.update(userUpdateParams).promise();
-
-    const bothRated =
-      (role === "buyer" && transaction.sellerRated) ||
-      (role === "seller" && transaction.buyerRated);
-    if (bothRated) {
-      updateExpression += ", ratingGiven = :true, status = :completed";
-      expressionAttributeValues[":completed"] = "completed";
-    }
-
-    const transactionUpdateParams = {
-      TableName: TRANSACTION_TABLE_NAME,
-      Key: { id: transactionId },
-      UpdateExpression: updateExpression,
-      ExpressionAttributeValues: expressionAttributeValues,
-      ReturnValues: "ALL_NEW"
-    };
-    await docClient.update(transactionUpdateParams).promise();
-
-    res.json({
-      message: "Rating submitted successfully",
-      updatedReputation: userResult.Attributes.reputationScore
-    });
-  } catch (error) {
-    res.status(500).json({ error: "Error submitting rating" });
-  }
-});
 
 // Log transaction activity (PING)
-router.post("/transactions/ping", async (req, res) => {
-  try {
-    const { transactionId } = req.body;
-    const updateParams = {
-      TableName: TRANSACTION_TABLE_NAME,
-      Key: { id: transactionId },
-      UpdateExpression:
-        "set lastPing = :now, pingCount = if_not_exists(pingCount, :zero) + :inc",
-      ExpressionAttributeValues: {
-        ":now": new Date().toISOString(),
-        ":inc": 1,
-        ":zero": 0
-      },
-      ReturnValues: "UPDATED_NEW"
-    };
-    const result = await docClient.update(updateParams).promise();
-    res.json({
-      message: "Ping recorded",
-      pingCount: result.Attributes.pingCount,
-      lastPing: result.Attributes.lastPing
-    });
-  } catch (error) {
-    res.status(500).json({ error: "Error recording ping" });
-  }
-});
+router.post("/transactions/ping", asyncHandler(async (req, res) => {
+  const result = await transactionService.pingTransaction(req.body.transactionId);
+  res.json(result);
+}));
 
 module.exports = router;

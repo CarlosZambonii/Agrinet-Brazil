@@ -1,11 +1,11 @@
 # Fruitful Backend (Agrinet Platform)
 
-This backend powers Agrinet services using Node.js, Express, AWS DynamoDB, and Server‑Sent Events (SSE) for streaming chat updates.
+This backend powers Agrinet services using Node.js, Express, and Server-Sent Events (SSE) for streaming chat updates.
 
 ## Overview
 
 - Runtime: Node.js + Express
-- Data: AWS DynamoDB (DocumentClient)
+- Database: MariaDB / MySQL (local-first architecture)
 - Streaming: SSE (`/events`, `/stream/:conversationId`)
 - Auth: JWT middleware; API Key support for some endpoints
 - Queues: BullMQ for SMS and background jobs
@@ -19,7 +19,7 @@ npm install
 node server.js
 ```
 
-Docker-based local dev with DynamoDB Local:
+Docker-based local dev:
 ```bash
 docker compose up --build
 ```
@@ -29,7 +29,6 @@ The API typically runs on port 5000 (see docker-compose).
 ## Environment
 
 Required (or set via `.env`):
-- AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, DYNAMODB_ENDPOINT (for local)
 - JWT_SECRET
 - TWILIO_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER (for SMS; optional TWILIO_STATUS_CALLBACK_URL)
 - STRIPE_KEY (if deposits enabled)
@@ -63,34 +62,9 @@ Main mounts (see `server.js`):
 - `/stream/:conversationId` – SSE per‑conversation stream
 
 Domain routes (when not in minimal mode):
-- `/` → `routes/api.js` (composed transaction + notification)
-- `/api/auth` → auth routes
-- `/api/keys` → key management
-- `/api/contracts` → contracts
-- `/api/admin` → admin
 - `/api/marketplace` → marketplace
 - `/users` → user management
-- `/products` → products
-- `/broadcast` → broadcasts
-- `/sms` → SMS webhooks
-- `/cart`, `/orders`, `/subscriptions`
-- `/conversations`, `/messages`
-- `/inventory`, `/api/location`
-- `/federation`, `/trends`
-- `/deposit` (optional; guarded by auth)
-
-## Data Model (DynamoDB tables)
-
-- `Users`, `Keys`
-- `Listings`, `Contracts`, `Transactions`
-- `Conversations`, `Messages`
-- `Notifications`
-- `Inventory`
-- `AgriculturalData` (for price/info lookups)
-
-Each model file exports a `*_TABLE_NAME` and an item builder, e.g.:
-- `models/user.js` → `USER_TABLE_NAME`, `createUserItem()`
-- `models/transaction.js` → `TRANSACTION_TABLE_NAME`, `createTransactionItem()`
+- `/federation` → federation sync
 
 ## Chat & Streaming
 
@@ -112,11 +86,10 @@ Server emitters (global):
 
 ## Transactions & Notifications
 
-- `POST /api/transactions`:
-  - Writes item to `Transactions`
-  - Writes `Notifications` item for buyer
-  - Enqueues a “ping” job
-  - May broadcast SSE events
+- `POST /api/marketplace/transactions`
+- `POST /api/marketplace/transactions/release-escrow`
+- `POST /api/marketplace/transactions/rate`
+- `POST /api/marketplace/transactions/ping`
 
 ## Security & Auth
 
@@ -136,13 +109,14 @@ Server emitters (global):
 - Entry: `backend/server.js`
 - Models: `backend/models/*`
 - Routes: `backend/routes/*`
+- Repositories: `backend/repositories/*`
 - Utils: `backend/utils/*`
 - Queues: `backend/bull/*`
 - Uploads: `backend/uploads`
 
 ## Testing
 
-See `backend/package.json` for Jest config and tests. Add route/model tests under `__tests__/`.
+See `backend/package.json` for current test commands.
 
 ---
 Contributions welcome! Please keep `server.js` slim by adding routes and logic in domain folders.
