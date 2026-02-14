@@ -1,9 +1,16 @@
 const { randomUUID } = require("crypto");
 const transactionRepository = require("../repositories/transactionRepository");
 const { createTransactionItem } = require("../marketplace/models/transaction");
+const { calculateFraudScore } = require("./fraudService");
 const userRepository = require("../repositories/userRepository");
 const walletRepository = require("../repositories/walletRepository");
 const pool = require("../lib/db");
+const {
+  agrinet_rating_total,
+  agrinet_rating_conflict_total,
+  fraudFlagTotal,
+  fraudBlockTotal
+} = require("../lib/metrics");
 
 async function createTransactionWithWalletDebit(payload) {
   const numericAmount = Number(payload.amount);
@@ -66,6 +73,16 @@ async function createTransactionWithWalletDebit(payload) {
       status: "pending"
     });
 
+    const fraudScore = await calculateFraudScore(
+      buyerId,
+      sellerId,
+      numericAmount
+    );
+    const flagged = fraudScore >= 60 ? 1 : 0;
+    if (flagged === 1) {
+      fraudFlagTotal.inc();
+    }
+
     // Insert transaction using same connection
     await connection.query(
       `INSERT INTO transactions SET ?`,
@@ -81,11 +98,15 @@ async function createTransactionWithWalletDebit(payload) {
         seller_rated: 0,
         rating_given: 0,
         escrow_locked: 1,
+        fraud_score: fraudScore,
+        flagged_for_review: flagged,
         created_at: new Date()
       }
     );
 
     await connection.commit();
+    const { transactionsCreated } = require("../lib/metrics");
+    transactionsCreated.inc();
 
     return { message: "Transaction initiated and wallet debited", transaction: item };
 
@@ -98,6 +119,8 @@ async function createTransactionWithWalletDebit(payload) {
 }
 
 async function releaseEscrow(transactionId) {
+  const { escrowReleaseSuccess, escrowReleaseConflict } = require("../lib/metrics");
+
   if (!transactionId) {
     const err = new Error("Transaction id required");
     err.statusCode = 400;
@@ -111,7 +134,7 @@ async function releaseEscrow(transactionId) {
 
     // 1️⃣ Lock row first (get seller + amount safely)
     const [rows] = await connection.query(
-      `SELECT seller_id, amount, listing_title
+      `SELECT seller_id, amount, listing_title, flagged_for_review
        FROM transactions
        WHERE id = ?
        FOR UPDATE`,
@@ -125,6 +148,12 @@ async function releaseEscrow(transactionId) {
     }
 
     const tx = rows[0];
+    if (tx.flagged_for_review === 1) {
+      fraudBlockTotal.inc();
+      const err = new Error("Transaction under review");
+      err.statusCode = 409;
+      throw err;
+    }
 
     // 2️⃣ Atomic conditional update
     const [updateResult] = await connection.query(
@@ -139,12 +168,14 @@ async function releaseEscrow(transactionId) {
         AND escrow_locked = 1
         AND buyer_rated = 1
         AND seller_rated = 1
+        AND flagged_for_review = 0
         AND rating_given = 0
       `,
       [transactionId]
     );
 
     if (updateResult.affectedRows === 0) {
+      escrowReleaseConflict.inc();
       const err = new Error("Escrow cannot be released");
       err.statusCode = 409;
       throw err;
@@ -160,6 +191,7 @@ async function releaseEscrow(transactionId) {
     );
 
     await connection.commit();
+    escrowReleaseSuccess.inc();
 
     return { message: "Escrow released successfully" };
 
@@ -171,7 +203,7 @@ async function releaseEscrow(transactionId) {
   }
 }
 
-async function rateTransaction(transactionId, rating, role) {
+async function rateTransaction(transactionId, rating, userId) {
   const numericRating = Number(rating);
   const transaction = await transactionRepository.findById(transactionId);
 
@@ -184,12 +216,6 @@ async function rateTransaction(transactionId, rating, role) {
   if (transaction && transaction.status === "completed") {
     const err = new Error("Transaction already finalized");
     err.statusCode = 409;
-    throw err;
-  }
-
-  if (!["buyer", "seller"].includes(role)) {
-    const err = new Error("Invalid role. Must be buyer or seller.");
-    err.statusCode = 400;
     throw err;
   }
 
@@ -216,6 +242,23 @@ async function rateTransaction(transactionId, rating, role) {
     }
 
     const tx = rows[0];
+    let actorRole;
+    if (tx.buyer_id === userId) {
+      actorRole = "buyer";
+    } else if (tx.seller_id === userId) {
+      actorRole = "seller";
+    } else {
+      const err = new Error("User not part of this transaction");
+      err.statusCode = 403;
+      throw err;
+    }
+
+    if (tx.flagged_for_review === 1) {
+      fraudBlockTotal.inc();
+      const err = new Error("Transaction under review");
+      err.statusCode = 409;
+      throw err;
+    }
 
     if (tx.rating_given === 1) {
       const err = new Error("Transaction already finalized");
@@ -224,13 +267,13 @@ async function rateTransaction(transactionId, rating, role) {
     }
 
     // prevent double rating
-    if (role === "buyer" && tx.buyer_rated === 1) {
+    if (actorRole === "buyer" && tx.buyer_rated === 1) {
       const err = new Error("Buyer already rated");
       err.statusCode = 409;
       throw err;
     }
 
-    if (role === "seller" && tx.seller_rated === 1) {
+    if (actorRole === "seller" && tx.seller_rated === 1) {
       const err = new Error("Seller already rated");
       err.statusCode = 409;
       throw err;
@@ -238,14 +281,14 @@ async function rateTransaction(transactionId, rating, role) {
 
     // mark rating
     await connection.query(
-      role === "buyer"
+      actorRole === "buyer"
         ? `UPDATE transactions SET buyer_rated = 1 WHERE id = ?`
         : `UPDATE transactions SET seller_rated = 1 WHERE id = ?`,
       [transactionId]
     );
 
     const userIdToRate =
-      role === "buyer" ? tx.seller_id : tx.buyer_id;
+      actorRole === "buyer" ? tx.seller_id : tx.buyer_id;
 
     await connection.query(
       `UPDATE users SET reputation_score = reputation_score + ? WHERE id = ?`,
@@ -266,18 +309,6 @@ async function rateTransaction(transactionId, rating, role) {
       updated.seller_rated === 1 &&
       updated.escrow_locked === 1
     ) {
-      await connection.query(
-        `
-        UPDATE transactions
-        SET escrow_locked = 0,
-            escrow_released_at = NOW(),
-            rating_given = 1,
-            status = 'completed'
-        WHERE id = ?
-        `,
-        [transactionId]
-      );
-
       await walletRepository.credit(
         updated.seller_id,
         Number(updated.amount),
@@ -288,10 +319,14 @@ async function rateTransaction(transactionId, rating, role) {
     }
 
     await connection.commit();
+    agrinet_rating_total.inc();
 
     return { message: "Rating submitted successfully" };
 
   } catch (err) {
+    if (err?.statusCode === 409) {
+      agrinet_rating_conflict_total.inc();
+    }
     await connection.rollback();
     throw err;
   } finally {
@@ -309,9 +344,64 @@ async function pingTransaction(transactionId) {
   };
 }
 
+async function resolveFlag(transactionId, action) {
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [rows] = await connection.query(
+      "SELECT * FROM transactions WHERE id = ?",
+      [transactionId]
+    );
+
+    if (!rows.length) {
+      const err = new Error("Transaction not found");
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const transaction = rows[0];
+
+    if (!transaction.flagged_for_review) {
+      const err = new Error("Transaction is not flagged");
+      err.statusCode = 400;
+      throw err;
+    }
+
+    if (action === "approve") {
+      await connection.query(
+        "UPDATE transactions SET flagged_for_review = 0 WHERE id = ?",
+        [transactionId]
+      );
+    }
+
+    if (action === "cancel") {
+      await connection.query(
+        `UPDATE transactions 
+         SET status = 'cancelled',
+             escrow_locked = 0,
+             flagged_for_review = 0
+         WHERE id = ?`,
+        [transactionId]
+      );
+    }
+
+    await connection.commit();
+
+    return { message: "Flag resolved" };
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
 module.exports = {
   createTransactionWithWalletDebit,
   releaseEscrow,
   pingTransaction,
-  rateTransaction
+  rateTransaction,
+  resolveFlag
 };

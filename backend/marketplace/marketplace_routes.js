@@ -1,10 +1,13 @@
 const express = require("express");
 const { randomUUID } = require("crypto");
+const pool = require("../lib/db");
 const listingRepository = require("../repositories/listingRepository");
 const broadcastRepository = require("../repositories/broadcastRepository");
 const transactionRepository = require("../repositories/transactionRepository");
 const userRepository = require("../repositories/userRepository");
 const asyncHandler = require('../utils/asyncHandler');
+const { strictWriteLimiter } = require("../middlewares/rateLimiters");
+const requireAuth = require("../middleware/requireAuth");
 
 const { createBroadcastItem } = require("./models/broadcasts");
 
@@ -71,15 +74,24 @@ router.get("/listings", asyncHandler(async (req, res) => {
 // Create a new transaction
 const transactionService = require("../services/transactionService");
 
-router.post("/transactions", asyncHandler(async (req, res) => {
-  const result = await transactionService.createTransactionWithWalletDebit(req.body);
+router.post("/transactions", requireAuth, strictWriteLimiter, asyncHandler(async (req, res) => {
+  const buyerId = req.user.id;
+  const { sellerId, amount, listingId, listingTitle } = req.body;
+
+  const result = await transactionService.createTransactionWithWalletDebit({
+    buyerId,
+    sellerId,
+    amount,
+    listingId,
+    listingTitle
+  });
   res.status(201).json(result);
 }));
 
 
 
 // Release escrow funds
-router.post("/transactions/release-escrow", asyncHandler(async (req, res) => {
+router.post("/transactions/release-escrow", strictWriteLimiter, asyncHandler(async (req, res) => {
   const result = await transactionService.releaseEscrow(req.body.transactionId);
   res.json(result);
 }));
@@ -88,8 +100,23 @@ router.post("/transactions/release-escrow", asyncHandler(async (req, res) => {
 
 // Retrieve all transactions
 router.get("/transactions", asyncHandler(async (req, res) => {
-  const transactions = await transactionRepository.findAll();
-  res.json(transactions);
+  const { status, page = 1, limit = 20, sort, order, flagged } = req.query;
+
+  const result = await transactionRepository.findPaginated({
+    status,
+    page: Number(page),
+    limit: Number(limit),
+    sort,
+    order,
+    flagged
+  });
+
+  res.json({
+    data: result.rows,
+    page: Number(page),
+    limit: Number(limit),
+    total: result.total
+  });
 }));
 
 
@@ -138,13 +165,14 @@ router.post("/transactions/dialog-validate", asyncHandler(async (req, res) => {
 
 
 // Submit a rating
-router.post("/transactions/rate", asyncHandler(async (req, res) => {
-  const { transactionId, rating, role } = req.body;
+router.post("/transactions/rate", requireAuth, strictWriteLimiter, asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const { transactionId, rating } = req.body;
 
   const result = await transactionService.rateTransaction(
     transactionId,
     rating,
-    role
+    userId
   );
 
   res.json(result);
@@ -156,5 +184,36 @@ router.post("/transactions/ping", asyncHandler(async (req, res) => {
   const result = await transactionService.pingTransaction(req.body.transactionId);
   res.json(result);
 }));
+
+router.get("/admin/flagged-transactions", asyncHandler(async (req, res) => {
+  const { sort = "created_at", order = "DESC" } = req.query;
+  const allowedSort = ["created_at", "fraud_score"];
+  const allowedOrder = ["ASC", "DESC"];
+  const safeSort = allowedSort.includes(String(sort)) ? String(sort) : "created_at";
+  const safeOrder = allowedOrder.includes(String(order).toUpperCase())
+    ? String(order).toUpperCase()
+    : "DESC";
+
+  const [rows] = await pool.query(
+    `SELECT * FROM transactions WHERE flagged_for_review = 1 ORDER BY ${safeSort} ${safeOrder}`
+  );
+  res.json(rows);
+}));
+
+router.post("/admin/resolve-flag", async (req, res, next) => {
+  try {
+    const { transactionId, action } = req.body;
+
+    if (!transactionId || !action) {
+      return res.status(400).json({ error: "Missing fields" });
+    }
+
+    const result = await transactionService.resolveFlag(transactionId, action);
+
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
 
 module.exports = router;

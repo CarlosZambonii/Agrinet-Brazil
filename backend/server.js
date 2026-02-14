@@ -1,7 +1,10 @@
 require('dotenv').config();
 const express = require("express");
 const http = require('http');
+const rateLimit = require("express-rate-limit");
 const errorHandler = require("./middleware/errorHandler");
+const pool = require("./lib/db");
+const { register } = require("./lib/metrics");
 
 let cors;
 try {
@@ -24,6 +27,10 @@ dotenv.config();
 const minimal = process.env.MINIMAL_SERVER === 'true';
 
 const app = express();
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+});
 
 // --- PRODUCTION-READY CORS RESTRICTION ---
 const allowedOrigins = ['https://www.ntari.org'];
@@ -41,7 +48,9 @@ app.use(cors({
 }));
 // -----------------------------------------
 
+app.use(limiter);
 app.use(express.json());
+
 const tryMount = (route, modPath) => {
   try {
     const mod = require(modPath);
@@ -54,6 +63,15 @@ const tryMount = (route, modPath) => {
 // Health Check Endpoint
 app.get('/health', (req, res) => {
   res.status(200).send('OK');
+});
+
+app.get("/healthz", async (_req, res) => {
+  try {
+    await pool.query("SELECT 1");
+    res.status(200).json({ ok: true });
+  } catch (_error) {
+    res.status(500).json({ ok: false });
+  }
 });
 
 // Server & SSE event stream
@@ -126,6 +144,14 @@ function emitMessage(conversationId, message) {
 
 global.emitToken = emitToken;
 global.emitMessage = emitMessage;
+
+// metrics FIRST
+app.get("/metrics", async (req, res) => {
+  res.set("Content-Type", register.contentType);
+  res.end(await register.metrics());
+});
+
+app.use("/auth", require("./routes/authRoutes"));
 
 // Middleware
 app.use(authMiddleware);

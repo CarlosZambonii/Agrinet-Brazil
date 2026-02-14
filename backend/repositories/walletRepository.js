@@ -1,4 +1,8 @@
 const pool = require("../lib/db");
+const {
+  agrinet_wallet_debit_fail_total,
+  agrinet_wallet_credit_total
+} = require("../lib/metrics");
 
 async function findByUserId(userId) {
   const [rows] = await pool.query(
@@ -51,6 +55,7 @@ async function debit(userId, amount, note, refId = null, externalConnection = nu
 
     return newBalance;
   } catch (err) {
+    agrinet_wallet_debit_fail_total.inc();
     if (!isExternal) {
       await connection.rollback();
     }
@@ -92,6 +97,7 @@ async function credit(userId, amount, note, refId = null, externalConnection = n
       "INSERT INTO wallet_history (user_id, type, amount, note, ref_id) VALUES (?, ?, ?, ?, ?)",
       [userId, "sale", amount, note, refId]
     );
+    agrinet_wallet_credit_total.inc();
 
     if (!isExternal) {
       await connection.commit();

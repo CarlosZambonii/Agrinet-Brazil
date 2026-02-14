@@ -1,47 +1,45 @@
 const express = require("express");
-const bcrypt = require("../utils/bcrypt");
-const jwt = require("../utils/jwt");
-const User = require("../models/user");
+const crypto = require("crypto");
+const bcrypt = require("bcryptjs");
+const pool = require("../lib/db");
+const { sign } = require("../lib/jwt");
+
 const router = express.Router();
-try {
-  require("dotenv").config();
-} catch {}
 
-// Test Route to Verify authRoutes
-router.get("/test", (req, res) => {
-    console.log("Test route hit");
-    res.status(200).json({ message: "Auth routes are working!" });
-});
-
-// Register User
 router.post("/register", async (req, res) => {
-    try {
-        const { username, email, phone, password } = req.body;
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const user = new User({ username, email, phone, password: hashedPassword });
+  const { email, password } = req.body;
 
-        await user.save();
-        res.status(201).json({ message: "User registered. Please verify your email/phone." });
-    } catch (error) {
-        res.status(500).json({ error: "Error registering user." });
-    }
+  const hash = await bcrypt.hash(password, 10);
+
+  const id = crypto.randomUUID();
+
+  await pool.query(
+    "INSERT INTO users (id, email) VALUES (?, ?) ON DUPLICATE KEY UPDATE email=email",
+    [id, email]
+  );
+
+  const token = sign({ id, email });
+
+  res.status(201).json({ token });
 });
 
-// Login User
 router.post("/login", async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        const user = await User.findOne({ email });
+  const { email } = req.body;
 
-        if (!user || !(await bcrypt.compare(password, user.password))) {
-            return res.status(401).json({ error: "Invalid credentials" });
-        }
+  const [rows] = await pool.query(
+    "SELECT id, email FROM users WHERE email = ?",
+    [email]
+  );
 
-        const token = jwt.sign({ userId: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "7d" });
-        res.json({ token, user });
-    } catch (error) {
-        res.status(500).json({ error: "Login error." });
-    }
+  if (!rows.length) {
+    return res.status(401).json({ error: "Invalid credentials" });
+  }
+
+  const user = rows[0];
+
+  const token = sign({ id: user.id, email: user.email });
+
+  res.json({ token });
 });
 
 module.exports = router;

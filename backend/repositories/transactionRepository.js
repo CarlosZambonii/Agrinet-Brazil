@@ -86,6 +86,45 @@ async function findAll() {
   return rows.map(mapRow);
 }
 
+async function findPaginated({ status, page = 1, limit = 20, sort = "created_at", order = "DESC", flagged }) {
+  const offset = (page - 1) * limit;
+
+  const allowedSort = ["created_at", "amount", "status"];
+  const allowedOrder = ["ASC", "DESC"];
+
+  const safeSort = allowedSort.includes(sort) ? sort : "created_at";
+  const safeOrder = allowedOrder.includes(order.toUpperCase()) ? order.toUpperCase() : "DESC";
+
+  let where = "";
+  const params = [];
+
+  if (status) {
+    where = "WHERE status = ?";
+    params.push(status);
+  }
+
+  if (flagged === "true") {
+    where += where ? " AND flagged_for_review = 1" : "WHERE flagged_for_review = 1";
+  }
+
+  const [[{ total }]] = await pool.query(
+    `SELECT COUNT(*) as total FROM transactions ${where}`,
+    params
+  );
+
+  const [rows] = await pool.query(
+    `
+    SELECT * FROM transactions
+    ${where}
+    ORDER BY ${safeSort} ${safeOrder}
+    LIMIT ? OFFSET ?
+    `,
+    [...params, Number(limit), Number(offset)]
+  );
+
+  return { rows: rows.map(mapRow), total };
+}
+
 async function updateDialog(transactionId, dialogNotes, dialogConfirmed, flaggedForReview) {
   const [res] = await pool.query(
     `
@@ -168,23 +207,6 @@ async function markRated(transactionId) {
   return res.affectedRows;
 }
 
-async function finalizeIfBothRated(id) {
-  const [result] = await pool.query(
-    `
-    UPDATE transactions
-    SET rating_given = 1,
-        status = 'completed'
-    WHERE id = ?
-      AND buyer_rated = 1
-      AND seller_rated = 1
-      AND rating_given = 0
-    `,
-    [id]
-  );
-
-  return result.affectedRows;
-}
-
 async function releaseIfLocked(transactionId) {
   const [res] = await pool.query(
     `
@@ -206,11 +228,11 @@ module.exports = {
   create,
   findById,
   findAll,
+  findPaginated,
   updateDialog,
   ping,
   markBuyerRated,
   markSellerRated,
   markRated,
-  finalizeIfBothRated,
   releaseIfLocked
 };

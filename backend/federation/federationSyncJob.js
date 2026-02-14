@@ -1,6 +1,7 @@
 require("dotenv").config({ path: __dirname + "/../.env" });
 const axios = require("axios");
 const nodeRegistryRepository = require("../repositories/nodeRegistryRepository");
+const { federationSyncSuccess, federationSyncFail } = require("../lib/metrics");
 
 const syncFromPeers = async () => {
   try {
@@ -36,13 +37,16 @@ const syncFromPeers = async () => {
         );
 
         await nodeRegistryRepository.updateLastSyncAt(node.node_url);
+        federationSyncSuccess.inc();
 
         console.log(`[32m[1m✔ Synced from ${node.node_url}[0m`);
       } catch (err) {
+        federationSyncFail.inc();
         console.log(`❌ Sync failed for ${node.node_url}:`, err.message);
       }
     }
   } catch (err) {
+    federationSyncFail.inc();
     console.error("[31m[1m❌ Federation sync error:[0m", err.message);
   }
 };

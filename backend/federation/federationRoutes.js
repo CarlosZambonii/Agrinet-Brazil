@@ -1,9 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../lib/db');
+const { syncFromPeers } = require('./federationSyncJob');
+const { federationImportSuccess, federationImportFail } = require('../lib/metrics');
+const { federationLimiter } = require("../middlewares/rateLimiters");
 
 // GET /federation/export?since=ISO_DATE
-router.get('/export', async (req, res) => {
+router.get('/export', federationLimiter, async (req, res) => {
   if (req.headers["x-api-key"] !== process.env.API_KEY) {
     return res.status(403).json({ error: "Unauthorized" });
   }
@@ -38,7 +41,7 @@ router.get('/export', async (req, res) => {
 });
 
 // Import route for federation sync (SQL version)
-router.post('/import', async (req, res) => {
+router.post('/import', federationLimiter, async (req, res) => {
   if (req.headers["x-api-key"] !== process.env.API_KEY) {
     return res.status(403).json({ error: "Unauthorized" });
   }
@@ -121,15 +124,22 @@ router.post('/import', async (req, res) => {
     }
 
     await connection.commit();
+    federationImportSuccess.inc();
 
     res.json({ message: 'Import successful' });
   } catch (err) {
     await connection.rollback();
+    federationImportFail.inc();
     console.error('Federation import error:', err);
     res.status(500).json({ error: 'Import failed' });
   } finally {
     connection.release();
   }
+});
+
+router.post("/sync-now", federationLimiter, async (req, res) => {
+  await syncFromPeers();
+  res.json({ ok: true });
 });
 
 module.exports = router;

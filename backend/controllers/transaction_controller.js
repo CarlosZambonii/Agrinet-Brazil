@@ -51,14 +51,6 @@ exports.submitRating = async (req, res) => {
     }
 
     await pool.query(
-      `UPDATE transactions 
-       SET rating_given = 1,
-           status = 'completed'
-       WHERE id = ?`,
-      [transactionId]
-    );
-
-    await pool.query(
       `UPDATE users 
        SET reputation_score = reputation_score + ?
        WHERE id = ?`,
