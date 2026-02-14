@@ -19,7 +19,6 @@ try {
   dotenv = { config: () => {} };
 }
 const path = require("path");
-const authMiddleware = require("./middleware/authMiddleware");
 
 // Load environment variables
 dotenv.config();
@@ -153,8 +152,6 @@ app.get("/metrics", async (req, res) => {
 
 app.use("/auth", require("./routes/authRoutes"));
 
-// Middleware
-app.use(authMiddleware);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes

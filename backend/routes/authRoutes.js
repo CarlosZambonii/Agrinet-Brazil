@@ -18,7 +18,8 @@ router.post("/register", async (req, res) => {
     [id, email]
   );
 
-  const token = sign({ id, email });
+  const role = "user";
+  const token = sign({ id, email, role });
 
   res.status(201).json({ token });
 });
@@ -27,7 +28,7 @@ router.post("/login", async (req, res) => {
   const { email } = req.body;
 
   const [rows] = await pool.query(
-    "SELECT id, email FROM users WHERE email = ?",
+    "SELECT id, email, role FROM users WHERE email = ?",
     [email]
   );
 
@@ -36,8 +37,7 @@ router.post("/login", async (req, res) => {
   }
 
   const user = rows[0];
-
-  const token = sign({ id: user.id, email: user.email });
+  const token = sign({ id: user.id, email: user.email, role: user.role });
 
   res.json({ token });
 });

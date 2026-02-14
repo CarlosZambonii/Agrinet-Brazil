@@ -7,7 +7,10 @@ const transactionRepository = require("../repositories/transactionRepository");
 const userRepository = require("../repositories/userRepository");
 const asyncHandler = require('../utils/asyncHandler');
 const { strictWriteLimiter } = require("../middlewares/rateLimiters");
-const requireAuth = require("../middleware/requireAuth");
+const { authenticateToken } = require("../middleware/authMiddleware");
+const requireAdmin = require("../middleware/requireAdmin");
+const authMiddleware = authenticateToken;
+const adminMiddleware = requireAdmin;
 
 const { createBroadcastItem } = require("./models/broadcasts");
 
@@ -74,7 +77,7 @@ router.get("/listings", asyncHandler(async (req, res) => {
 // Create a new transaction
 const transactionService = require("../services/transactionService");
 
-router.post("/transactions", requireAuth, strictWriteLimiter, asyncHandler(async (req, res) => {
+router.post("/transactions", authenticateToken, strictWriteLimiter, asyncHandler(async (req, res) => {
   const buyerId = req.user.id;
   const { sellerId, amount, listingId, listingTitle } = req.body;
 
@@ -91,7 +94,7 @@ router.post("/transactions", requireAuth, strictWriteLimiter, asyncHandler(async
 
 
 // Release escrow funds
-router.post("/transactions/release-escrow", strictWriteLimiter, asyncHandler(async (req, res) => {
+router.post("/transactions/release-escrow", authenticateToken, strictWriteLimiter, asyncHandler(async (req, res) => {
   const result = await transactionService.releaseEscrow(req.body.transactionId);
   res.json(result);
 }));
@@ -165,7 +168,7 @@ router.post("/transactions/dialog-validate", asyncHandler(async (req, res) => {
 
 
 // Submit a rating
-router.post("/transactions/rate", requireAuth, strictWriteLimiter, asyncHandler(async (req, res) => {
+router.post("/transactions/rate", authenticateToken, strictWriteLimiter, asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const { transactionId, rating } = req.body;
 
@@ -185,7 +188,7 @@ router.post("/transactions/ping", asyncHandler(async (req, res) => {
   res.json(result);
 }));
 
-router.get("/admin/flagged-transactions", asyncHandler(async (req, res) => {
+router.get("/admin/flagged-transactions", authenticateToken, requireAdmin, asyncHandler(async (req, res) => {
   const { sort = "created_at", order = "DESC" } = req.query;
   const allowedSort = ["created_at", "fraud_score"];
   const allowedOrder = ["ASC", "DESC"];
@@ -199,6 +202,16 @@ router.get("/admin/flagged-transactions", asyncHandler(async (req, res) => {
   );
   res.json(rows);
 }));
+
+router.get(
+  "/admin/stats",
+  authMiddleware,
+  adminMiddleware,
+  asyncHandler(async (req, res) => {
+    const stats = await transactionService.getAdminStats();
+    res.json(stats);
+  })
+);
 
 router.post("/admin/resolve-flag", async (req, res, next) => {
   try {

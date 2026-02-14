@@ -398,10 +398,36 @@ async function resolveFlag(transactionId, action) {
   }
 }
 
+async function getAdminStats() {
+  const [rows] = await pool.query(`
+    SELECT
+      COUNT(*) AS totalTransactions,
+      SUM(status = 'pending') AS pending,
+      SUM(status = 'completed') AS completed,
+      SUM(flagged_for_review = 1) AS flagged,
+      COALESCE(SUM(CASE 
+        WHEN status = 'completed' THEN amount 
+        ELSE 0 
+      END), 0) AS totalVolume
+    FROM transactions
+  `);
+
+  const result = rows[0] || {};
+
+  return {
+    totalTransactions: Number(result.totalTransactions || 0),
+    pending: Number(result.pending || 0),
+    completed: Number(result.completed || 0),
+    flagged: Number(result.flagged || 0),
+    totalVolume: Number(result.totalVolume || 0)
+  };
+}
+
 module.exports = {
   createTransactionWithWalletDebit,
   releaseEscrow,
   pingTransaction,
   rateTransaction,
-  resolveFlag
+  resolveFlag,
+  getAdminStats
 };
