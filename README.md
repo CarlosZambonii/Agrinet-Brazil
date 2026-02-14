@@ -1,182 +1,39 @@
-# Agrinet - Decentralized Agricultural Marketplace 🌱
 
-## Overview
+# agrinet-portugues
+O Agrinet é um sistema de inteligência coletiva de código aberto para a agricultura.
 
-Agrinet is a decentralized agricultural trading and service platform built to enhance transparency, trust, and efficiency in agricultural markets. It connects producers, consumers, and service providers while ensuring secure transactions, reputation-based ratings, and localized economic sustainability.
+## 📚 Documentação em Português
 
-## Features
+Este repositório contém a documentação completa do Agrinet traduzida para português. Você encontrará guias de setup, testes de API, implantação em produção e muito mais.
 
-#### Marketplace System 🏪 
+### 📂 Estrutura do Repositório
 
-- Direct Market Access: Producers list goods, services, and contracts.
-- Agrotourism Integration: Farmers can offer farm tours, events, and educational workshops.
-- Service Marketplace: Users can provide or request agricultural services (e.g., logistics, maintenance).
-
-#### Secure Transactions 🔒
-
-- LBTAS (Leveson-Based Trade Assessment Scale): Ensures a trust-based rating system.
-- Dialog Recorder: Logs key transaction details for security and auditing.
-- Machine Scrub Module: Filters and verifies transaction data.
-
-#### Key & Authentication System 🔑
-
-- McEliese Key Generation: Ensures secure user identification.
-- Key Transmission Limits: Auto-retirement after 3, 6, 9, 12, or 365 transmissions.
-- Multi-Factor Verification: Email/phone validation with retry & lockout security.
-
-#### PING System 📡
-
-- Production Progress Reporting: Allows contract buyers to track order status.
-- Real-Time Notifications: Updates on market trends, contract changes, and service requests.
-
-#### SMS Access 📱
-
-- Query market and weather data through SMS using simple text commands.
-- Supports local languages and queues messages offline with delivery confirmation.
-
-#### Financial Transactions 🏦
-
-- Deposit & Donations to NTARI Account: Supports decentralized funding.
-- Automated Payouts: Ensures secure fund disbursements upon transaction completion.
-
-#### Decentralized Data Management 🌍
-
-- User Profiles & Logs: Maintains key issuance logs parallel to user profiles.
-- Geo-Filtering & Search Optimization: Enables market visibility based on location.
-
-#### Square Foot Gardening Calculator 🌿
-
-- Plant spacing recommendations for common crops.
-- Compatibility matrix to plan companion planting.
-- Growth projections and seasonal schedules with visual grid layouts.
-
-## Technology Stack
-
-- Frontend: React with Next.js (responsive site structure)
-- Backend: Node.js (API handling)
-- Database: MariaDB / MySQL
-- Security: OAuth 2.0 / McEliese Key Cryptography
-- Real-Time Processing: Webhooks & PING System
-
-## Installation & Setup
-
-1. Clone the repository
 ```
-git clone https://github.com/YOUR_USERNAME/Fruitful.git
-cd Agrinet
+agrinet-portugu-s/
+├── README.md (este arquivo)
+├── docs/
+│   ├── API_TESTING.pt.md          - Guia completo para testes da API
+│   ├── ONBOARDING.pt.md           - Guia de configuração de nós da federação
+│   ├── FEDERATION_GUIDE.pt.md     - Guia de implantação em produção
+│   └── release-process.pt.md      - Processo de versionamento e lançamento
 ```
 
-2. Setup the backend
-```
-cd backend
-npm install
-node server.js
-```
+### 🚀 Começando
 
-3. Deploy the frontend
-```
-cd frontend
-npm install
-npm run dev
-```
+Para acessar o repositório original do Agrinet em inglês, visite: https://github.com/NTARI-RAND/Agrinet
 
-For local development, set the `NEXT_PUBLIC_BACKEND_URL` environment variable to your backend's URL before running the frontend, for example:
-```
-NEXT_PUBLIC_BACKEND_URL=http://localhost:5000 npm run dev
-```
-Only environment variables prefixed with `NEXT_PUBLIC_` are exposed to the browser, so this prefix is required.
-Alternatively, configure a proxy so that requests to `/api` are forwarded to the backend.
+### 📖 Documentação Disponível
 
-### Environment Variables
-
-Set the following variables in your environment or `.env` file:
-
-- `TWILIO_SID`
-- `TWILIO_AUTH_TOKEN`
-- `TWILIO_FROM_NUMBER`
-- `TWILIO_STATUS_CALLBACK_URL` *(optional for delivery confirmation)*
-
-## Square Foot Gardening Usage
-
-The backend includes a utility for planning square foot gardens.
-
-```javascript
-const { planSeason } = require('./backend/utils/squareFootGardening');
-
-const layout = [
-  ['tomato', 'basil'],
-  ['lettuce', null],
-];
-
-const plan = planSeason(layout, '2024-03-01', 'spring');
-console.log(plan.grid);
-console.log(plan.schedule);
-```
-
-The planner validates companion planting, projects growth timelines, and renders an ASCII grid of the garden.
-
-## API Endpoints
-
-Additional chat interface endpoints (e.g., `/conversations`, `/messages/:id`, `/stream/:id`) and their expected JSON
-structures are documented inline in the frontend components
-[`Sidebar.jsx`](frontend/chat-ui/src/components/Sidebar.jsx) and
-[`ChatWindow.jsx`](frontend/chat-ui/src/components/ChatWindow.jsx).
-### User Registration
-#### POST /userRegistration
-```
-{
-  "name": "John Doe",
-  "email": "johndoe@example.com",
-  "location": "Kentucky, USA",
-  "role": "producer"
-}
-```
-
-### Create Contract
-#### POST /createContract
-```
-{
-  "producerId": "user123",
-  "type": "Tomato",
-  "variety": "Roma",
-  "category": "food",
-  "amountNeeded": "500 lbs",
-  "dateNeeded": "2025-03-15",
-  "pingRate": "weekly"
-}
-```
-
-### Submit LBTAS Rating
-#### POST /submitRating
-```
-{
-  "transactionId": "tx987",
-  "rating": 4
-}
-```
-
-## Contributing
-We welcome contributions from the community! 🚀
-
-1. Fork the repo
-2. Create a feature branch
-3. Submit a pull request
-
-### Checking for hardcoded URLs
-
-Run the following script to detect any hardcoded `localhost` references before committing code:
-
-```bash
-./scripts/list-hardcoded-urls.sh
-```
-
-The script lists offending lines and exits with a nonzero status if any are found.
-Existing references known to be safe are tracked in `scripts/hardcoded-url-allowlist.txt`.
-
-## License
-AGPL, GNU-3�
-
-## Contact & Support
-- NTARI https://www.ntari.org/ 
-- Email - tech@ntari.org
-- Slack - [Join our community for discussions!](https://ntari.slack.com) 
+- **[Guia de Testes da API](docs/API_TESTING.pt.md)** - Como testar os endpoints da API usando curl
+- - **[Guia de Onboarding](docs/ONBOARDING.pt.md)** - Configurar um nó da federação Agrinet
+  - - **[Guia de Implantação](docs/FEDERATION_GUIDE.pt.md)** - Deploy em produção e federação
+    - - **[Processo de Lançamento](docs/release-process.pt.md)** - Versionamento e automação de lançamentos
+     
+      - ### 🌍 Sobre o Agrinet
+     
+      - O Agrinet é um sistema descentralizado de inteligência coletiva de código aberto para a agricultura. Conecta produtores, consumidores e prestadores de serviços em um marketplace seguro e transparente.
+     
+      - ### 📝 Licença
+     
+      - AGPL-3.0 - Este projeto é código aberto e deve permanecer assim.
+>>>>>>> 37cc875d9fd4a7ab50eaa564af27e03ef2618fa8
