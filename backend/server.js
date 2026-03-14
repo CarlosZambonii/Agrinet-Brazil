@@ -1,10 +1,18 @@
 require('dotenv').config();
 const express = require("express");
 const http = require('http');
+const { Server } = require("socket.io");
 const rateLimit = require("express-rate-limit");
 const errorHandler = require("./middleware/errorHandler");
 const pool = require("./lib/db");
-const { register } = require("./lib/metrics");
+const {
+  register,
+  paymentsTotal,
+  disputesOpenTotal,
+  activeListingsTotal,
+  activeUsersTotal
+} = require("./lib/metrics");
+const { connectRedis } = require("./lib/redis");
 
 let cors;
 try {
@@ -26,9 +34,29 @@ dotenv.config();
 const minimal = process.env.MINIMAL_SERVER === 'true';
 
 const app = express();
+const globalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 100
+});
+
+/* ---------------- STRIPE WEBHOOK FIRST ---------------- */
+app.post(
+  "/payments/webhook",
+  express.raw({ type: "application/json" }),
+  require("./routes/webhook")
+);
+/* ------------------------------------------------------ */
+
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
+});
+
+const paymentLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 // --- PRODUCTION-READY CORS RESTRICTION ---
@@ -48,7 +76,10 @@ app.use(cors({
 // -----------------------------------------
 
 app.use(limiter);
+/* ----------- THEN normal body parser ----------- */
 app.use(express.json());
+app.use(globalLimiter);
+/* ----------------------------------------------- */
 
 const tryMount = (route, modPath) => {
   try {
@@ -61,7 +92,11 @@ const tryMount = (route, modPath) => {
 
 // Health Check Endpoint
 app.get('/health', (req, res) => {
-  res.status(200).send('OK');
+  res.json({
+    status: 'ok',
+    service: 'agrinet-api',
+    time: new Date().toISOString()
+  });
 });
 
 app.get("/healthz", async (_req, res) => {
@@ -75,6 +110,134 @@ app.get("/healthz", async (_req, res) => {
 
 // Server & SSE event stream
 const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*"
+  }
+});
+
+io.on("connection", (socket) => {
+  console.log("Socket conectado:", socket.id);
+
+  socket.on("user_online", (userId) => {
+
+    socket.userId = userId;
+
+    io.emit("user_online", {
+      user_id: userId
+    });
+
+  });
+
+  socket.on("join_conversation", (conversationId) => {
+    socket.join(conversationId);
+    console.log(`Socket ${socket.id} entrou na conversa ${conversationId}`);
+  });
+
+  socket.on("typing", (data) => {
+
+    const { conversation_id, user_id } = data;
+
+    socket.to(conversation_id).emit("user_typing", {
+      conversation_id,
+      user_id
+    });
+
+  });
+
+  socket.on("send_message", async (data) => {
+
+    const { conversation_id, message, sender_id } = data;
+
+    try {
+
+      const id = require("crypto").randomUUID();
+
+      const [check] = await pool.query(
+        `
+        SELECT 1
+        FROM conversations
+        WHERE id = ?
+        AND (buyer_id = ? OR seller_id = ?)
+        `,
+        [conversation_id, sender_id, sender_id]
+      );
+
+      if (!check.length) {
+        console.log("Mensagem bloqueada: usuário não pertence à conversa");
+        return;
+      }
+
+      await pool.query(
+        `
+        INSERT INTO messages (id, conversation_id, sender_id, message)
+        VALUES (?, ?, ?, ?)
+        `,
+        [id, conversation_id, sender_id, message]
+      );
+
+      // criar notificação para outros participantes
+      const [participants] = await pool.query(
+        `
+        SELECT buyer_id, seller_id
+        FROM conversations
+        WHERE id = ?
+        `,
+        [conversation_id]
+      );
+
+      if (participants.length) {
+
+        const { buyer_id, seller_id } = participants[0];
+
+        const receiver =
+          sender_id === buyer_id ? seller_id : buyer_id;
+
+        const notificationId = require("crypto").randomUUID();
+
+        await pool.query(
+          `
+          INSERT INTO notifications (id, user_id, type, message)
+          VALUES (?, ?, ?, ?)
+          `,
+          [
+            notificationId,
+            receiver,
+            "new_message",
+            "Nova mensagem recebida"
+          ]
+        );
+
+      }
+
+      const payload = {
+        id,
+        conversation_id,
+        sender_id,
+        message,
+        created_at: new Date().toISOString()
+      };
+
+      io.to(conversation_id).emit("receive_message", payload);
+
+    } catch (err) {
+      console.error("Socket message error:", err);
+    }
+
+  });
+
+  socket.on("disconnect", () => {
+
+    if (socket.userId) {
+      io.emit("user_offline", {
+        user_id: socket.userId
+      });
+    }
+
+    console.log("Socket desconectado:", socket.id);
+
+  });
+});
 
 // Simple Server-Sent Events implementation
 const sseClients = new Set();
@@ -151,8 +314,16 @@ app.get("/metrics", async (req, res) => {
 });
 
 app.use("/auth", require("./routes/authRoutes"));
+app.use('/payments', paymentLimiter);
+app.use("/payments", require("./routes/paymentRoutes"));
+app.use('/transactions', require('./routes/transactionRoutes'));
+app.use('/admin', require('./routes/adminRoutes'));
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/listings', require('./routes/listingRoutes'));
+app.use("/conversations", require("./routes/conversationRoutes"));
+app.use("/messages", require("./routes/messageRoutes"));
+app.use("/notifications", require("./routes/notificationRoutes"));
 
 // Routes
 if (!minimal) {
@@ -172,8 +343,51 @@ app.use((req, res, next) => {
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
-if (require.main === module) {
+
+async function start() {
+  await connectRedis();
+
   server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 }
+
+if (require.main === module) {
+  start().catch((err) => {
+    console.error("Server startup failed:", err);
+    process.exit(1);
+  });
+}
+
+const expirePendingPayments = require("./jobs/paymentExpirationJob");
+
+setInterval(() => {
+  expirePendingPayments();
+}, 60 * 1000); // roda a cada 1 minuto
+
+setInterval(async () => {
+  try {
+    const [[payments]] = await pool.query(
+      "SELECT COUNT(*) as count FROM payments"
+    );
+
+    const [[disputes]] = await pool.query(
+      "SELECT COUNT(*) as count FROM disputes WHERE status='open'"
+    );
+
+    const [[listings]] = await pool.query(
+      "SELECT COUNT(*) as count FROM listings WHERE status='active'"
+    );
+
+    const [[users]] = await pool.query(
+      "SELECT COUNT(*) as count FROM users WHERE is_blocked = 0"
+    );
+
+    paymentsTotal.set(payments.count);
+    disputesOpenTotal.set(disputes.count);
+    activeListingsTotal.set(listings.count);
+    activeUsersTotal.set(users.count);
+  } catch (err) {
+    console.error("Metrics refresh failed:", err.message);
+  }
+}, 15000);
 
 module.exports = { app, server };

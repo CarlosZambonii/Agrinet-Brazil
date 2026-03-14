@@ -1,8 +1,8 @@
 const pool = require("../lib/db");
-const { v4: uuidv4 } = require("uuid");
+const crypto = require("crypto");
 
 async function create({ type, payload }) {
-  const id = uuidv4();
+  const id = crypto.randomUUID();
 
   await pool.query(
     `INSERT INTO broadcasts (id, type, payload) VALUES (?, ?, ?)`,

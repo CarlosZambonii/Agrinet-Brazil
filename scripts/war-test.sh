@@ -2,11 +2,11 @@
 
 BASE_URL="http://localhost:5000"
 
-BUYER_EMAIL="secbuyer@test.com"
-SELLER_EMAIL="secseller@test.com"
+BUYER_EMAIL="warbuyer@test.com"
+SELLER_EMAIL="warseller@test.com"
 PASSWORD="123456"
 
-echo "=== SECURITY TEST START ==="
+echo "=== WAR TEST START ==="
 
 ############################################
 # LOGIN / REGISTER
@@ -36,39 +36,33 @@ BUYER_ID=$(echo $BUYER_TOKEN | cut -d '.' -f2 | base64 -d 2>/dev/null | jq -r .i
 SELLER_ID=$(echo $SELLER_TOKEN | cut -d '.' -f2 | base64 -d 2>/dev/null | jq -r .id)
 
 ############################################
-# CREATE TRANSACTION
+# CREATE TX
 ############################################
 
-TX_RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST \
-  $BASE_URL/api/marketplace/transactions \
+TX_RESPONSE=$(curl -s -X POST $BASE_URL/api/marketplace/transactions \
   -H "Authorization: Bearer $BUYER_TOKEN" \
   -H "Content-Type: application/json" \
   -d "{\"sellerId\":\"$SELLER_ID\",\"amount\":5}")
 
-echo "$TX_RESPONSE"
+echo "Create TX response: $TX_RESPONSE"
 
 TX_ID=$(echo $TX_RESPONSE | jq -r .transaction.id)
 
 echo "TX: $TX_ID"
 
+if [ -z "$TX_ID" ] || [ "$TX_ID" = "null" ]; then
+  echo "❌ Failed to create TX"
+  exit 1
+fi
+
 ############################################
-# DOUBLE RATING TEST
+# RATE BOTH SIDES
 ############################################
 
-echo "Rating twice as buyer (should 409 second)..."
 curl -s -X POST $BASE_URL/api/marketplace/transactions/rate \
   -H "Authorization: Bearer $BUYER_TOKEN" \
   -H "Content-Type: application/json" \
   -d "{\"transactionId\":\"$TX_ID\",\"rating\":4}"
-
-curl -s -X POST $BASE_URL/api/marketplace/transactions/rate \
-  -H "Authorization: Bearer $BUYER_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d "{\"transactionId\":\"$TX_ID\",\"rating\":4}"
-
-############################################
-# COMPLETE RATING
-############################################
 
 curl -s -X POST $BASE_URL/api/marketplace/transactions/rate \
   -H "Authorization: Bearer $SELLER_TOKEN" \
@@ -76,30 +70,45 @@ curl -s -X POST $BASE_URL/api/marketplace/transactions/rate \
   -d "{\"transactionId\":\"$TX_ID\",\"rating\":4}"
 
 ############################################
-# DOUBLE RELEASE TEST
+# MAKE ADMIN TOKEN
 ############################################
 
-echo "First release:"
+ADMIN_EMAIL="admin@test.com"
+
+ADMIN_TOKEN=$(curl -s -X POST $BASE_URL/auth/login \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"123456\"}" | jq -r .token)
+
+############################################
+# WAR: RELEASE VS CANCEL
+############################################
+
+echo "⚔️ Running release and cancel simultaneously..."
+
 curl -s -X POST $BASE_URL/api/marketplace/transactions/release-escrow \
   -H "Authorization: Bearer $BUYER_TOKEN" \
   -H "Content-Type: application/json" \
-  -d "{\"transactionId\":\"$TX_ID\"}"
+  -d "{\"transactionId\":\"$TX_ID\"}" &
 
-echo "Second release (should fail 409):"
-curl -s -X POST $BASE_URL/api/marketplace/transactions/release-escrow \
-  -H "Authorization: Bearer $BUYER_TOKEN" \
+curl -s -X POST $BASE_URL/api/marketplace/admin/resolve-flag \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
-  -d "{\"transactionId\":\"$TX_ID\"}"
+  -d "{\"transactionId\":\"$TX_ID\",\"action\":\"cancel\"}" &
+
+wait
 
 ############################################
-# VERIFY WALLET HISTORY
+# CHECK RESULT
 ############################################
 
-echo "Wallet history entries for TX:"
+echo "Final transaction state:"
 mysql -u root -proot agrinet -e "
-SELECT user_id,type,amount,ref_id
-FROM wallet_history
-WHERE ref_id LIKE '$TX_ID%';
+SELECT id,status,escrow_locked FROM transactions WHERE id='$TX_ID';
 "
 
-echo "=== SECURITY TEST END ==="
+echo "Wallet history:"
+mysql -u root -proot agrinet -e "
+SELECT user_id,type,amount,ref_id FROM wallet_history WHERE ref_id LIKE '$TX_ID%';
+"
+
+echo "=== WAR TEST END ==="

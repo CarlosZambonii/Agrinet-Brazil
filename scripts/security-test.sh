@@ -39,17 +39,20 @@ SELLER_ID=$(echo $SELLER_TOKEN | cut -d '.' -f2 | base64 -d 2>/dev/null | jq -r 
 # CREATE TRANSACTION
 ############################################
 
-TX_RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST \
-  $BASE_URL/api/marketplace/transactions \
+TX_RESPONSE=$(curl -s -X POST $BASE_URL/api/marketplace/transactions \
   -H "Authorization: Bearer $BUYER_TOKEN" \
   -H "Content-Type: application/json" \
   -d "{\"sellerId\":\"$SELLER_ID\",\"amount\":5}")
 
-echo "$TX_RESPONSE"
-
+echo "Create TX response: $TX_RESPONSE"
 TX_ID=$(echo $TX_RESPONSE | jq -r .transaction.id)
 
 echo "TX: $TX_ID"
+if [ -z "$TX_ID" ] || [ "$TX_ID" = "null" ]; then
+  echo "❌ Failed to create transaction. Full response:"
+  echo "$TX_RESPONSE"
+  exit 1
+fi
 
 ############################################
 # DOUBLE RATING TEST

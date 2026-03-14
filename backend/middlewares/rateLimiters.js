@@ -1,4 +1,5 @@
 const rateLimit = require("express-rate-limit");
+const { ipKeyGenerator } = require("express-rate-limit");
 
 const strictWriteLimiter = rateLimit({
   windowMs: 10 * 60 * 1000, // 10 min
@@ -24,8 +25,24 @@ const federationLimiter = rateLimit({
   message: { error: "Too many federation requests" }
 });
 
+const userRateLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 100,
+  keyGenerator: (req) => {
+    if (req.user && req.user.id) {
+      return `user:${req.user.id}`;
+    }
+
+    return ipKeyGenerator(req);
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "User rate limit exceeded" }
+});
+
 module.exports = {
   strictWriteLimiter,
   authLimiter,
-  federationLimiter
+  federationLimiter,
+  userRateLimiter
 };

@@ -91,6 +91,23 @@ router.post("/transactions", authenticateToken, strictWriteLimiter, asyncHandler
   res.status(201).json(result);
 }));
 
+router.post("/transactions/from-listing", authenticateToken, async (req, res) => {
+  try {
+    const { listingId, quantity } = req.body;
+
+    const result = await transactionService.createFromListing({
+      listingId,
+      buyerId: req.user.id,
+      quantity
+    });
+
+    return res.status(201).json(result);
+
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
+  }
+});
+
 
 
 // Release escrow funds
@@ -213,7 +230,11 @@ router.get(
   })
 );
 
-router.post("/admin/resolve-flag", async (req, res, next) => {
+router.post(
+  "/admin/resolve-flag",
+  authenticateToken,
+  requireAdmin,
+  async (req, res, next) => {
   try {
     const { transactionId, action } = req.body;
 
@@ -221,7 +242,7 @@ router.post("/admin/resolve-flag", async (req, res, next) => {
       return res.status(400).json({ error: "Missing fields" });
     }
 
-    const result = await transactionService.resolveFlag(transactionId, action);
+    const result = await transactionService.resolveFlag(transactionId, action, req.user.id);
 
     res.json(result);
   } catch (err) {

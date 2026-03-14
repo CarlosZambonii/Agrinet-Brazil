@@ -1,21 +1,37 @@
 const { randomUUID } = require("crypto");
+const crypto = require("crypto");
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const transactionRepository = require("../repositories/transactionRepository");
 const { createTransactionItem } = require("../marketplace/models/transaction");
 const { calculateFraudScore } = require("./fraudService");
 const userRepository = require("../repositories/userRepository");
 const walletRepository = require("../repositories/walletRepository");
 const pool = require("../lib/db");
+const { auditFinancialEvent } = require("../utils/financialAudit");
 const {
   agrinet_rating_total,
   agrinet_rating_conflict_total,
+  escrowReleaseSuccess,
   fraudFlagTotal,
-  fraudBlockTotal
+  fraudBlockTotal,
+  disputesOpenedTotal
 } = require("../lib/metrics");
 
 async function createTransactionWithWalletDebit(payload) {
   const numericAmount = Number(payload.amount);
+  if (!Number.isFinite(numericAmount) || numericAmount <= 0 || numericAmount > 1000000) {
+    const err = new Error("Invalid amount");
+    err.statusCode = 400;
+    throw err;
+  }
   const buyerId = payload.buyerId;
   const sellerId = payload.sellerId;
+
+  if (typeof sellerId !== "string" || sellerId.length > 50) {
+    const err = new Error("Invalid sellerId");
+    err.statusCode = 400;
+    throw err;
+  }
 
   if (!buyerId || !Number.isFinite(numericAmount) || numericAmount <= 0) {
     const err = new Error("buyerId and valid positive amount required");
@@ -118,82 +134,150 @@ async function createTransactionWithWalletDebit(payload) {
   }
 }
 
-async function releaseEscrow(transactionId) {
-  const { escrowReleaseSuccess, escrowReleaseConflict } = require("../lib/metrics");
-
-  if (!transactionId) {
-    const err = new Error("Transaction id required");
-    err.statusCode = 400;
-    throw err;
-  }
-
+async function createFromListing({ listingId, buyerId, quantity }) {
   const connection = await pool.getConnection();
 
   try {
     await connection.beginTransaction();
 
-    // 1️⃣ Lock row first (get seller + amount safely)
-    const [rows] = await connection.query(
-      `SELECT seller_id, amount, listing_title, flagged_for_review
-       FROM transactions
-       WHERE id = ?
-       FOR UPDATE`,
-      [transactionId]
+    // 1️⃣ Lock listing
+    const [listings] = await connection.query(
+      `SELECT * FROM listings WHERE id = ? FOR UPDATE`,
+      [listingId]
     );
 
-    if (!rows.length) {
-      const err = new Error("Transaction not found");
-      err.statusCode = 404;
+    const listing = listings[0];
+
+    if (!listing) {
+      throw new Error("Listing not found");
+    }
+
+    if (listing.origin_node) {
+      const err = new Error("Listing belongs to another federation node");
+      err.statusCode = 400;
+      err.origin_node = listing.origin_node;
       throw err;
     }
 
-    const tx = rows[0];
-    if (tx.flagged_for_review === 1) {
-      fraudBlockTotal.inc();
-      const err = new Error("Transaction under review");
-      err.statusCode = 409;
-      throw err;
+    if (listing.user_id === buyerId) {
+      throw new Error("Cannot buy your own listing");
     }
 
-    // 2️⃣ Atomic conditional update
-    const [updateResult] = await connection.query(
+    if (listing.status !== "active") {
+      throw new Error("Listing not available");
+    }
+
+    if (Number(listing.quantity_available) < Number(quantity)) {
+      throw new Error("Insufficient quantity");
+    }
+
+    const unitPrice = listing.price;
+    const totalAmount = unitPrice * quantity;
+
+    const transactionId = crypto.randomUUID();
+
+    // 2️⃣ Create transaction
+    await connection.query(
+      `INSERT INTO transactions (
+        id,
+        buyer_id,
+        seller_id,
+        listing_id,
+        listing_title,
+        quantity,
+        unit_price,
+        amount,
+        status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+      [
+        transactionId,
+        buyerId,
+        listing.user_id,
+        listing.id,
+        listing.title,
+        quantity,
+        unitPrice,
+        totalAmount
+      ]
+    );
+
+    await connection.query(
       `
-      UPDATE transactions
-      SET escrow_locked = 0,
-          escrow_released_at = NOW(),
-          status = 'completed',
-          rating_given = 1
+      UPDATE listings
+      SET
+        quantity_available = quantity_available - ?,
+        status = CASE
+          WHEN quantity_available - ? <= 0 THEN 'sold'
+          ELSE status
+        END
       WHERE id = ?
-        AND status = 'pending'
-        AND escrow_locked = 1
-        AND buyer_rated = 1
-        AND seller_rated = 1
-        AND flagged_for_review = 0
-        AND rating_given = 0
       `,
-      [transactionId]
-    );
-
-    if (updateResult.affectedRows === 0) {
-      escrowReleaseConflict.inc();
-      const err = new Error("Escrow cannot be released");
-      err.statusCode = 409;
-      throw err;
-    }
-
-    // 3️⃣ Credit seller in SAME transaction
-    await walletRepository.credit(
-      tx.seller_id,
-      Number(tx.amount),
-      `Sale: ${tx.listing_title || ""}`,
-      transactionId,
-      connection
+      [quantity, quantity, listingId]
     );
 
     await connection.commit();
-    escrowReleaseSuccess.inc();
 
-    return { message: "Escrow released successfully" };
+    return { transactionId, totalAmount };
+
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+async function createPaymentForTransaction(transactionId) {
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [rows] = await connection.query(
+      `SELECT * FROM transactions WHERE id = ? FOR UPDATE`,
+      [transactionId]
+    );
+
+    const transaction = rows[0];
+
+    if (!transaction) {
+      throw new Error("Transaction not found");
+    }
+
+    if (transaction.status !== "pending") {
+      throw new Error("Invalid transaction state");
+    }
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(transaction.amount * 100),
+      currency: 'brl',
+      payment_method_types: ['card'],
+      metadata: {
+        transactionId: transaction.id,
+        listingId: transaction.listing_id
+      }
+    });
+
+    await connection.query(
+      `INSERT INTO payments (
+        id,
+        user_id,
+        amount,
+        provider,
+        status
+      ) VALUES (?, ?, ?, 'stripe', 'pending')`,
+      [
+        paymentIntent.id,
+        transaction.buyer_id,
+        transaction.amount
+      ]
+    );
+
+    await connection.commit();
+
+    return {
+      clientSecret: paymentIntent.client_secret
+    };
 
   } catch (err) {
     await connection.rollback();
@@ -303,21 +387,6 @@ async function rateTransaction(transactionId, rating, userId) {
 
     const updated = updatedRows[0];
 
-    // if both rated → finalize + release escrow + credit
-    if (
-      updated.buyer_rated === 1 &&
-      updated.seller_rated === 1 &&
-      updated.escrow_locked === 1
-    ) {
-      await walletRepository.credit(
-        updated.seller_id,
-        Number(updated.amount),
-        `Sale: ${updated.listing_title || ""}`,
-        transactionId,
-        connection
-      );
-    }
-
     await connection.commit();
     agrinet_rating_total.inc();
 
@@ -344,7 +413,7 @@ async function pingTransaction(transactionId) {
   };
 }
 
-async function resolveFlag(transactionId, action) {
+async function resolveFlag(transactionId, action, adminId) {
   const connection = await pool.getConnection();
 
   try {
@@ -377,15 +446,50 @@ async function resolveFlag(transactionId, action) {
     }
 
     if (action === "cancel") {
+      if (transaction.status !== "pending" || transaction.escrow_locked !== 1) {
+        const err = new Error("Only pending locked transactions can be cancelled");
+        err.statusCode = 409;
+        throw err;
+      }
+
+      // 1️⃣ Refund buyer inside SAME transaction
+      await walletRepository.credit(
+        transaction.buyer_id,
+        Number(transaction.amount),
+        `Refund: ${transaction.listing_title || ""}`,
+        `${transactionId}-refund`,
+        null,
+        "deposit"
+      );
+
+      // 2️⃣ Cancel transaction + unlock escrow
       await connection.query(
         `UPDATE transactions 
          SET status = 'cancelled',
              escrow_locked = 0,
-             flagged_for_review = 0
+             flagged_for_review = 0,
+             rating_given = 1
          WHERE id = ?`,
         [transactionId]
       );
     }
+
+    await connection.query(
+      `INSERT INTO admin_actions 
+       (id, admin_id, action, target_type, target_id, meta)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        randomUUID(),
+        adminId,
+        action,
+        "transaction",
+        transactionId,
+        JSON.stringify({
+          previousStatus: transaction.status,
+          flagged: transaction.flagged_for_review
+        })
+      ]
+    );
 
     await connection.commit();
 
@@ -423,8 +527,149 @@ async function getAdminStats() {
   };
 }
 
+async function releaseEscrow(transactionId, userId) {
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [rows] = await connection.query(
+      `SELECT * FROM transactions WHERE id=? FOR UPDATE`,
+      [transactionId]
+    );
+
+    const tx = rows[0];
+
+    if (!tx) throw new Error('Transaction not found');
+
+    if (tx.seller_id !== userId) {
+      throw new Error('Not authorized to release escrow');
+    }
+
+    if (tx.status === 'disputed') {
+      throw new Error('Escrow locked due to active dispute');
+    }
+
+    if (tx.status !== 'paid') {
+      throw new Error('Transaction not paid');
+    }
+
+    if (tx.escrow_locked !== 1) {
+      throw new Error('Escrow already released');
+    }
+
+    await connection.query(
+      `UPDATE wallets 
+       SET balance = balance + ? 
+       WHERE user_id = ?`,
+      [tx.amount, tx.seller_id]
+    );
+
+    const [updateTx] = await connection.query(
+      `UPDATE transactions 
+       SET status='completed',
+           escrow_locked=0,
+           escrow_released_at=NOW()
+       WHERE id=?
+         AND status='paid'
+         AND escrow_locked=1`,
+      [transactionId]
+    );
+
+    if (updateTx.affectedRows === 0) {
+      throw new Error('Escrow already released or transaction not eligible');
+    }
+
+    await auditFinancialEvent({
+      eventType: "escrow_release",
+      userId: userId,
+      transactionId: transactionId,
+      walletUserId: tx.seller_id,
+      amount: tx.amount,
+      metadata: { source: "transaction_service" },
+      connection
+    });
+
+    await connection.commit();
+    escrowReleaseSuccess.inc();
+
+    return { message: 'Escrow released' };
+
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+async function openDispute(transactionId, userId, reason) {
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [rows] = await connection.query(
+      `SELECT * FROM transactions WHERE id=? FOR UPDATE`,
+      [transactionId]
+    );
+
+    const tx = rows[0];
+
+    if (!tx) throw new Error('Transaction not found');
+
+    if (tx.buyer_id !== userId) {
+      throw new Error('Only the buyer can open a dispute');
+    }
+
+    if (tx.status !== 'paid') {
+      throw new Error('Dispute can only be opened for paid transactions');
+    }
+
+    if (tx.escrow_locked !== 1) {
+      throw new Error('Escrow already released');
+    }
+
+    const disputeId = randomUUID();
+
+    await connection.query(
+      `INSERT INTO disputes (
+        id,
+        transaction_id,
+        opened_by,
+        reason,
+        status
+      ) VALUES (?, ?, ?, ?, 'open')`,
+      [disputeId, transactionId, userId, reason]
+    );
+
+    await connection.query(
+      `UPDATE transactions
+       SET status = 'disputed'
+       WHERE id = ?`,
+      [transactionId]
+    );
+
+    await connection.commit();
+    disputesOpenedTotal.inc();
+
+    return {
+      message: 'Dispute opened',
+      disputeId
+    };
+
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
 module.exports = {
   createTransactionWithWalletDebit,
+  createFromListing,
+  createPaymentForTransaction,
   releaseEscrow,
   pingTransaction,
   rateTransaction,

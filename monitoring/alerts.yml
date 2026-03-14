@@ -1,0 +1,37 @@
+groups:
+
+- name: agrinet-alerts
+
+  rules:
+
+  - alert: HighPaymentFailureRate
+    expr: rate(stripe_payment_failed_total[5m]) > 0.05
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      description: High Stripe payment failure rate
+
+  - alert: FraudSpike
+    expr: rate(velocity_trigger_total[5m]) > 5
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      description: Fraud velocity spike detected
+
+  - alert: EscrowReleaseFailures
+    expr: rate(agrinet_escrow_release_conflict_total[5m]) > 1
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      description: Escrow release conflicts increasing
+
+  - alert: DisputeRateHigh
+    expr: rate(agrinet_disputes_open_total[10m]) > 2
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      description: Dispute rate unusually high
