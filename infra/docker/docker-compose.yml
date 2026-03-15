@@ -1,0 +1,82 @@
+services:
+
+  mariadb:
+    image: mariadb:11
+    container_name: agrinet_mariadb
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: agrinet
+      MYSQL_USER: agrinet
+      MYSQL_PASSWORD: agrinet
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ../../schema.sql:/docker-entrypoint-initdb.d/schema.sql
+
+  redis:
+    image: redis:7
+    container_name: agrinet_redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+
+  api:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    container_name: agrinet_api
+    restart: unless-stopped
+    depends_on:
+      - mariadb
+      - redis
+    ports:
+      - "5000:5000"
+    env_file:
+      - ../../.env
+    environment:
+      DB_HOST: mariadb
+      REDIS_HOST: redis
+      PORT: 5000
+    volumes:
+      - ../../backend/uploads:/app/uploads
+
+  federation-sync:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    container_name: agrinet_federation_sync
+    restart: unless-stopped
+    depends_on:
+      - mariadb
+      - redis
+    env_file:
+      - ../../.env
+    environment:
+      DB_HOST: mariadb
+      REDIS_HOST: redis
+    command: ["node", "federation/federationSyncJob.js"]
+
+  prometheus:
+    image: prom/prometheus
+    container_name: agrinet_prometheus
+    restart: unless-stopped
+    volumes:
+      - ../../monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ../../monitoring/alerts.yml:/etc/prometheus/alerts.yml
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana
+    container_name: agrinet_grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+
+volumes:
+  mariadb_data:
+  redis_data:
+  grafana_data:
