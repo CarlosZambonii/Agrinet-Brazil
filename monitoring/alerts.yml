@@ -4,34 +4,81 @@ groups:
 
   rules:
 
+  # --- API ---
+  - alert: APIDown
+    expr: up{job="agrinet"} == 0
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      description: "A API do Agrinet está fora do ar"
+
+  # --- Pagamentos ---
   - alert: HighPaymentFailureRate
     expr: rate(stripe_payment_failed_total[5m]) > 0.05
     for: 2m
     labels:
       severity: warning
     annotations:
-      description: High Stripe payment failure rate
+      description: "Taxa alta de falha nos pagamentos Stripe"
 
+  - alert: StripeMismatchSpike
+    expr: rate(stripe_amount_mismatch_total[5m]) > 0.1
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      description: "Spike de mismatch de valores no Stripe"
+
+  # --- Fraude ---
   - alert: FraudSpike
     expr: rate(velocity_trigger_total[5m]) > 5
     for: 1m
     labels:
       severity: critical
     annotations:
-      description: Fraud velocity spike detected
+      description: "Spike de fraude por velocidade detectado"
 
+  - alert: HighBlockRate
+    expr: rate(user_block_total[5m]) > 1
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      description: "Taxa alta de bloqueio de usuários"
+
+  # --- Escrow ---
   - alert: EscrowReleaseFailures
     expr: rate(agrinet_escrow_release_conflict_total[5m]) > 1
     for: 2m
     labels:
       severity: warning
     annotations:
-      description: Escrow release conflicts increasing
+      description: "Conflitos de liberação de escrow aumentando"
 
+  # --- Disputes ---
   - alert: DisputeRateHigh
     expr: rate(agrinet_disputes_open_total[10m]) > 2
     for: 5m
     labels:
       severity: warning
     annotations:
-      description: Dispute rate unusually high
+      description: "Taxa de disputes anormalmente alta"
+
+  # --- Wallet ---
+  - alert: WalletDebitFailureSpike
+    expr: rate(agrinet_wallet_debit_fail_total[5m]) > 0.5
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      description: "Spike de falhas em débitos de wallet"
+
+  # --- Federation ---
+  - alert: FederationSyncDown
+    expr: rate(agrinet_federation_sync_fail_total[10m]) > 3
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      description: "Federation sync com alta taxa de falha"

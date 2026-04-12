@@ -1,0 +1,172 @@
+{
+  "title": "Agrinet — Fraude & Segurança",
+  "uid": "agrinet-fraud",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "15s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Velocity triggers / min",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "rate(velocity_trigger_total[1m]) * 60",
+          "legendFormat": "triggers/min",
+          "datasource": "Prometheus"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "orange" }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Contas bloqueadas (acumulado)",
+      "type": "stat",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "expr": "user_block_total",
+          "legendFormat": "bloqueadas",
+          "datasource": "Prometheus"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "red" }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Fraudes flagged (acumulado)",
+      "type": "stat",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "expr": "agrinet_fraud_flag_total",
+          "legendFormat": "flagged",
+          "datasource": "Prometheus"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "dark-orange" }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Fraudes bloqueadas (acumulado)",
+      "type": "stat",
+      "gridPos": { "x": 12, "y": 4, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "expr": "agrinet_fraud_block_total",
+          "legendFormat": "bloqueadas",
+          "datasource": "Prometheus"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "red" }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Pagamentos falhos (acumulado)",
+      "type": "stat",
+      "gridPos": { "x": 18, "y": 4, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "expr": "failed_payment_total",
+          "legendFormat": "falhos",
+          "datasource": "Prometheus"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Disputes abertas vs resolvidas",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "rate(agrinet_disputes_open_total[5m])",
+          "legendFormat": "abertas",
+          "datasource": "Prometheus"
+        },
+        {
+          "expr": "rate(agrinet_disputes_resolved_total[5m])",
+          "legendFormat": "resolvidas",
+          "datasource": "Prometheus"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Stripe — Eventos duplicados e mismatch",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "rate(stripe_webhook_duplicate_total[5m])",
+          "legendFormat": "duplicados",
+          "datasource": "Prometheus"
+        },
+        {
+          "expr": "rate(stripe_amount_mismatch_total[5m])",
+          "legendFormat": "mismatch",
+          "datasource": "Prometheus"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Federation — Sync sucesso vs falha",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 7 },
+      "targets": [
+        {
+          "expr": "rate(agrinet_federation_sync_success_total[5m])",
+          "legendFormat": "sucesso",
+          "datasource": "Prometheus"
+        },
+        {
+          "expr": "rate(agrinet_federation_sync_fail_total[5m])",
+          "legendFormat": "falha",
+          "datasource": "Prometheus"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Ratings — Total vs Conflito",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 16, "w": 12, "h": 7 },
+      "targets": [
+        {
+          "expr": "rate(agrinet_rating_total[5m])",
+          "legendFormat": "ratings",
+          "datasource": "Prometheus"
+        },
+        {
+          "expr": "rate(agrinet_rating_conflict_total[5m])",
+          "legendFormat": "conflitos",
+          "datasource": "Prometheus"
+        }
+      ]
+    }
+  ]
+}

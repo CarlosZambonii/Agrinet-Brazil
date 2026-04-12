@@ -1,4 +1,12 @@
 const pool = require("../lib/db");
+const { redis } = require("../lib/redis");
+
+async function checkVelocityRedis(userId) {
+  const key = `fraud:velocity:${userId}`;
+  const count = await redis.incr(key);
+  if (count === 1) await redis.expire(key, 600); // janela de 10 min
+  return count;
+}
 
 async function calculateTransactionFraudScore(buyerId, sellerId, amount) {
   let score = 0;
@@ -35,6 +43,9 @@ async function calculateTransactionFraudScore(buyerId, sellerId, amount) {
 
 async function calculateUserFraudScore(userId) {
   let score = 0;
+
+  const velocityCount = await checkVelocityRedis(userId);
+  if (velocityCount >= 5) score += 30;
 
   const [[velocity]] = await pool.query(
     `

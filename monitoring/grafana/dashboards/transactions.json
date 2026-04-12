@@ -1,0 +1,176 @@
+{
+  "title": "Agrinet — Transações",
+  "uid": "agrinet-transactions",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Transações criadas / min",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "rate(agrinet_transactions_created_total[1m]) * 60",
+          "legendFormat": "transações/min",
+          "datasource": "Prometheus"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Pagamentos no sistema",
+      "type": "stat",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "expr": "payments_total",
+          "legendFormat": "pagamentos",
+          "datasource": "Prometheus"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Listings ativos",
+      "type": "stat",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "expr": "active_listings_total",
+          "legendFormat": "listings",
+          "datasource": "Prometheus"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Usuários ativos",
+      "type": "stat",
+      "gridPos": { "x": 12, "y": 4, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "expr": "active_users_total",
+          "legendFormat": "usuários",
+          "datasource": "Prometheus"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Disputes abertas",
+      "type": "stat",
+      "gridPos": { "x": 18, "y": 4, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "expr": "disputes_open_total",
+          "legendFormat": "disputes",
+          "datasource": "Prometheus"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Escrow — Sucesso vs Conflito",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "rate(agrinet_escrow_release_success_total[5m])",
+          "legendFormat": "sucesso",
+          "datasource": "Prometheus"
+        },
+        {
+          "expr": "rate(agrinet_escrow_release_conflict_total[5m])",
+          "legendFormat": "conflito",
+          "datasource": "Prometheus"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Pagamentos Stripe — Sucesso vs Falha",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "rate(stripe_payment_succeeded_total[5m])",
+          "legendFormat": "sucesso",
+          "datasource": "Prometheus"
+        },
+        {
+          "expr": "rate(stripe_payment_failed_total[5m])",
+          "legendFormat": "falha",
+          "datasource": "Prometheus"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Wallet — Créditos",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 16, "w": 8, "h": 7 },
+      "targets": [
+        {
+          "expr": "rate(agrinet_wallet_credit_total[5m])",
+          "legendFormat": "créditos/s",
+          "datasource": "Prometheus"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Wallet — Débitos Falhos",
+      "type": "timeseries",
+      "gridPos": { "x": 8, "y": 16, "w": 8, "h": 7 },
+      "targets": [
+        {
+          "expr": "rate(agrinet_wallet_debit_fail_total[5m])",
+          "legendFormat": "falhas/s",
+          "datasource": "Prometheus"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Refunds Stripe",
+      "type": "timeseries",
+      "gridPos": { "x": 16, "y": 16, "w": 8, "h": 7 },
+      "targets": [
+        {
+          "expr": "rate(stripe_refund_total[5m])",
+          "legendFormat": "refunds/s",
+          "datasource": "Prometheus"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Mensagens enviadas / min",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 23, "w": 12, "h": 7 },
+      "targets": [
+        {
+          "expr": "rate(messages_sent_total[1m]) * 60",
+          "legendFormat": "mensagens/min",
+          "datasource": "Prometheus"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "Buscas de listings / min",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 23, "w": 12, "h": 7 },
+      "targets": [
+        {
+          "expr": "rate(search_queries_total[1m]) * 60",
+          "legendFormat": "buscas/min",
+          "datasource": "Prometheus"
+        }
+      ]
+    }
+  ]
+}

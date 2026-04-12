@@ -7,6 +7,7 @@ const pool = require('../lib/db');
 const { strictWriteLimiter, userRateLimiter } = require('../middlewares/rateLimiters');
 const { sanitizeFields } = require('../middleware/sanitizeInput');
 const upload = require('../middleware/uploadMiddleware');
+const { uploadFile } = require('../lib/storage');
 const { messagesSentTotal } = require('../lib/metrics');
 
 router.use(auth);
@@ -35,7 +36,7 @@ router.post(
   let attachmentType = null;
 
   if (req.file) {
-    attachmentUrl = `/uploads/chat/${req.file.filename}`;
+    attachmentUrl = await uploadFile(req.file.buffer, req.file.mimetype, "chat");
     attachmentType = req.file.mimetype;
   }
 

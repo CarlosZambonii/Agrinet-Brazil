@@ -12,7 +12,8 @@ const {
   activeListingsTotal,
   activeUsersTotal
 } = require("./lib/metrics");
-const { connectRedis } = require("./lib/redis");
+const { redis, connectRedis } = require("./lib/redis");
+const { RedisStore } = require("rate-limit-redis");
 
 let cors;
 try {
@@ -36,7 +37,8 @@ const minimal = process.env.MINIMAL_SERVER === 'true';
 const app = express();
 const globalLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 100
+  max: 100,
+  store: new RedisStore({ sendCommand: (...args) => redis.sendCommand(args) }),
 });
 
 /* ---------------- STRIPE WEBHOOK FIRST ---------------- */
@@ -50,6 +52,7 @@ app.post(
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
+  store: new RedisStore({ sendCommand: (...args) => redis.sendCommand(args) }),
 });
 
 const paymentLimiter = rateLimit({
@@ -57,6 +60,7 @@ const paymentLimiter = rateLimit({
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
+  store: new RedisStore({ sendCommand: (...args) => redis.sendCommand(args) }),
 });
 
 // --- PRODUCTION-READY CORS RESTRICTION ---
@@ -319,7 +323,6 @@ app.use("/payments", require("./routes/paymentRoutes"));
 app.use('/transactions', require('./routes/transactionRoutes'));
 app.use('/admin', require('./routes/adminRoutes'));
 
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/listings', require('./routes/listingRoutes'));
 app.use("/conversations", require("./routes/conversationRoutes"));
 app.use("/messages", require("./routes/messageRoutes"));
@@ -346,6 +349,10 @@ const PORT = process.env.PORT || 5000;
 
 async function start() {
   await connectRedis();
+
+  const knex = require('knex')(require('./knexfile'));
+  await knex.migrate.latest();
+  console.log('Migrations aplicadas com sucesso');
 
   server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 }
