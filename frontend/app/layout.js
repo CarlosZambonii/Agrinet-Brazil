@@ -1,20 +1,24 @@
-import './globals.css'
-import Header from '../components/Header'
-import Footer from '../components/Footer'
+import './globals.css';
+import { ToastProvider } from '@/components/ui/Toast';
+import Footer from '@/components/Footer';
+import ClientLayout from '@/components/ClientLayout';
 
 export const metadata = {
-  title: 'Agrinet',
-  description: 'Decentralized agricultural marketplace',
-}
+  title: 'Agrinet — Marketplace Agrícola',
+  description: 'Compre e venda commodities agrícolas com segurança, escrow garantido e pagamento protegido.',
+};
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="pt-BR">
       <body>
-        <Header />
-        <main>{children}</main>
-        <Footer />
+        <ToastProvider>
+          <ClientLayout>
+            {children}
+          </ClientLayout>
+          <Footer />
+        </ToastProvider>
       </body>
     </html>
-  )
+  );
 }
