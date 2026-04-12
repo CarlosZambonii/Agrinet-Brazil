@@ -1,4 +1,5 @@
 module.exports = {
   clearMocks: true,
-  testEnvironment: 'node'
+  testEnvironment: 'node',
+  testPathIgnorePatterns: ['/node_modules/', '/sync/']
 };
