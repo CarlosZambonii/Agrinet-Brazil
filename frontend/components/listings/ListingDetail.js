@@ -1,16 +1,25 @@
 'use client';
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { Modal, ModalHeader } from '@/components/ui/Modal';
 import { catLabel, CAT_EMOJI, formatCurrency, formatDate } from '@/lib/format';
-import { StatusBadge, Badge } from '@/components/ui/Badge';
+import { Badge } from '@/components/ui/Badge';
 import { api } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 import { useRouter } from 'next/navigation';
 
+const CAT_BG = {
+  graos:    'from-amber-50 to-yellow-100',
+  frutas:   'from-orange-50 to-amber-100',
+  gado:     'from-green-50 to-emerald-100',
+  maquinas: 'from-slate-50 to-gray-100',
+  outros:   'from-cream to-cream2',
+};
+
 export default function ListingDetail({ listing, onClose }) {
-  const [qty, setQty] = useState('');
+  const [qty, setQty]         = useState('');
   const [loading, setLoading] = useState(false);
-  const toast = useToast();
+  const toast  = useToast();
   const router = useRouter();
   const l = listing;
 
@@ -30,52 +39,82 @@ export default function ListingDetail({ listing, onClose }) {
     }
   }
 
+  const bg = CAT_BG[l.category] || CAT_BG.outros;
+
   return (
     <Modal onClose={onClose} maxWidth="560px">
       <ModalHeader title={l.title} onClose={onClose} />
 
-      <div style={{ height: 180, borderRadius: 'var(--r-lg)', overflow: 'hidden', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div className={`listing-img-bg ${l.category || 'outros'}`} style={{ width: '100%', height: '100%', fontSize: 72, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {CAT_EMOJI[l.category] || '📦'}
-        </div>
+      {/* IMAGE */}
+      <div className={`h-44 rounded-xl mb-5 bg-gradient-to-br ${bg} flex items-center justify-center overflow-hidden`}>
+        {l.images?.[0]
+          ? <img src={l.images[0]} alt={l.title} className="w-full h-full object-cover" />
+          : <span className="text-7xl select-none">{CAT_EMOJI[l.category] || '📦'}</span>
+        }
       </div>
 
-      <div className="flex-between mb-16">
+      {/* PRICE + AVAILABILITY */}
+      <div className="flex items-end justify-between mb-5">
         <div>
-          <div className="flex gap-8 mb-8">
+          <div className="flex gap-2 mb-2">
             <Badge variant="green">{catLabel(l.category)}</Badge>
             <Badge variant="gray">{l.unit}</Badge>
           </div>
-          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 36, fontWeight: 700, color: 'var(--moss)', lineHeight: 1 }}>{formatCurrency(l.price)}</div>
-          <div style={{ fontSize: 15, color: 'var(--text3)', marginTop: 4 }}>por {l.unit}</div>
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <div className="text-xs text-muted mb-8" style={{ letterSpacing: '.06em', textTransform: 'uppercase' }}>Disponível</div>
-          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 22, fontWeight: 700, color: 'var(--soil)' }}>
-            {Number(l.quantity_available).toLocaleString('pt-BR')} {l.unit}
+          <div className="font-serif text-4xl font-black text-moss leading-none">
+            {formatCurrency(l.price)}
           </div>
+          <div className="text-sm text-text3 mt-1">por {l.unit}</div>
+        </div>
+        <div className="text-right">
+          <div className="text-xs font-semibold uppercase tracking-widest text-text3 mb-1">Disponível</div>
+          <div className="font-serif text-2xl font-bold text-soil">
+            {Number(l.quantity_available).toLocaleString('pt-BR')}
+          </div>
+          <div className="text-xs text-text3">{l.unit}</div>
         </div>
       </div>
 
+      {/* DESCRIPTION */}
       {l.description && (
-        <div style={{ fontSize: 14, color: 'var(--text2)', lineHeight: 1.7, marginBottom: 16 }}>{l.description}</div>
+        <p className="text-sm text-text2 leading-relaxed mb-4">{l.description}</p>
       )}
 
-      <div className="flex-between text-sm text-muted mb-16">
+      {/* LOCATION + DATE */}
+      <div className="flex items-center justify-between text-sm text-text3 mb-4">
         <span>📍 {l.city}, {l.state}</span>
-        <span>{formatDate(l.created_at)}</span>
+        {l.created_at && <span>{formatDate(l.created_at)}</span>}
       </div>
 
-      <div className="divider" />
+      <div className="border-t border-[var(--border-c)] my-4" />
 
+      {/* BUY FORM */}
       <div className="form-group">
-        <label className="form-label">Quantidade que deseja comprar</label>
-        <input type="number" placeholder="Ex: 10" min="1" value={qty} onChange={e => setQty(e.target.value)} />
+        <label className="form-label">Quantidade ({l.unit})</label>
+        <input
+          type="number"
+          className="form-input"
+          placeholder={`Ex: 10 ${l.unit}`}
+          min="1"
+          max={l.quantity_available}
+          value={qty}
+          onChange={e => setQty(e.target.value)}
+        />
+        {qty && parseFloat(qty) > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-2 text-sm font-semibold text-moss">
+            Total estimado: {formatCurrency(parseFloat(qty) * l.price)}
+          </motion.div>
+        )}
       </div>
 
-      <div className="flex gap-8">
-        <button className="btn btn-primary" style={{ flex: 1 }} onClick={buy} disabled={loading}>
-          {loading ? 'Aguarde...' : 'Comprar agora'}
+      <div className="flex gap-3">
+        <button
+          className="btn btn-primary flex-1"
+          onClick={buy}
+          disabled={loading}>
+          {loading ? 'Aguarde...' : '🛒 Comprar agora'}
         </button>
         <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
       </div>

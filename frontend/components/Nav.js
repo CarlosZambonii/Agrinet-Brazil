@@ -32,7 +32,7 @@ export function DesktopNav({ onOpenAuth }) {
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
-  const { unread } = useNotifications();
+  const { unread, markRead } = useNotifications();
 
   useEffect(() => {
     setUser(getUser());
@@ -70,7 +70,7 @@ export function DesktopNav({ onOpenAuth }) {
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            <button className="relative p-2 rounded-full hover:bg-cream2 transition-colors" onClick={() => router.push('/perfil')}>
+            <button className="relative p-2 rounded-full hover:bg-cream2 transition-colors" onClick={() => { markRead(); router.push('/perfil'); }}>
               <span className="text-lg">🔔</span>
               <NotifBadge count={unread} />
             </button>

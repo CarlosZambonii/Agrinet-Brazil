@@ -176,33 +176,34 @@ function MarketplaceInner() {
             </span>
           </div>
 
-          <div className="listing-grid">
-            <AnimatePresence mode="wait">
-              {listings === null
-                ? Array(8).fill(0).map((_, i) => <ListingCardSkeleton key={i} />)
-                : filtered?.length
-                  ? filtered.map((l, i) => (
-                      <motion.div
-                        key={l.id}
-                        initial={{ opacity: 0, y: 16 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: .3, delay: i * .04 }}>
-                        <ListingCard listing={l} onClick={setSelected} />
-                      </motion.div>
-                    ))
-                  : (
-                    <motion.div
-                      key="empty"
-                      initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                      className="col-span-full flex flex-col items-center py-20 gap-3">
-                      <span className="text-5xl">🌾</span>
-                      <p className="text-text3 text-sm">Nenhum produto encontrado</p>
-                      <button className="btn btn-ghost btn-sm" onClick={() => { setCat(''); setSearch(''); setStateF(''); load(); }}>Limpar filtros</button>
-                    </motion.div>
-                  )
-              }
-            </AnimatePresence>
-          </div>
+          <AnimatePresence mode="wait">
+            {listings === null ? (
+              <div key="skeletons" className="listing-grid">
+                {Array(8).fill(0).map((_, i) => <ListingCardSkeleton key={i} />)}
+              </div>
+            ) : filtered?.length ? (
+              <div key="grid" className="listing-grid">
+                {filtered.map((l, i) => (
+                  <motion.div
+                    key={l.id}
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: .3, delay: i * .04 }}>
+                    <ListingCard listing={l} onClick={setSelected} />
+                  </motion.div>
+                ))}
+              </div>
+            ) : (
+              <motion.div
+                key="empty"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                className="flex flex-col items-center py-20 gap-3">
+                <span className="text-5xl">🌾</span>
+                <p className="text-text3 text-sm">Nenhum produto encontrado</p>
+                <button className="btn btn-ghost btn-sm" onClick={() => { setCat(''); setSearch(''); setStateF(''); load(); }}>Limpar filtros</button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 

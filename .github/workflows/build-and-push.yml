@@ -61,3 +61,19 @@ jobs:
             caza6367/agrinet-federation-sync:${{ steps.meta.outputs.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Build e Push agrinet-frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+            NEXT_PUBLIC_API_KEY=${{ secrets.NEXT_PUBLIC_API_KEY }}
+          tags: |
+            caza6367/agrinet-frontend:latest
+            caza6367/agrinet-frontend:${{ steps.meta.outputs.version }}
+            caza6367/agrinet-frontend:${{ steps.meta.outputs.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
