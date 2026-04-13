@@ -1,6 +1,10 @@
-# Agrinet — Documentacao Tecnica
+# Agrinet — Documentação Técnica
 
-Backend de marketplace para comercializacao de commodities agricolas. Cobre o ciclo completo de uma negociacao: publicacao de anuncio, pagamento com escrow, liberacao ao vendedor, chat em tempo real, antifraude e federacao entre nos.
+Marketplace agrícola descentralizado para o Brasil. Cobre o ciclo completo de uma negociação: publicação de anúncio, pagamento com escrow, liberação ao vendedor, chat em tempo real, antifraude e federação entre nós.
+
+**Frontend:** Next.js 14 + Tailwind + Shadcn/ui + Framer Motion  
+**Backend:** Node.js + Express + MariaDB + Redis  
+**Infra:** Docker Compose + GitHub Actions CI/CD + Cloudflare R2
 
 ---
 
@@ -110,10 +114,11 @@ Middleware (Auth / Rate Limit / Sanitizacao)
 | Rate limiting por IP e por usuario | Concluido |
 | Sanitizacao e validacao de entrada | Concluido |
 | Auditoria financeira append-only | Concluido |
-| Object Storage (S3/R2) | Pendente |
-| Integracao PIX | Planejado |
-| Listings agricolas completos | Planejado |
-| Frontend | Planejado |
+| Object Storage — Cloudflare R2 | Concluído |
+| Frontend Next.js 14 | Concluído |
+| CI/CD GitHub Actions | Concluído |
+| Integração PIX | Planejado |
+| Listings agrícolas completos (certificações, rastreabilidade) | Planejado |
 
 ---
 
@@ -125,8 +130,14 @@ Integracao com PIX via Stripe para uso real no mercado brasileiro. Requer tabela
 **Fase 5 — Listings Agricolas Completos**
 Atributos especificos por categoria, certificacoes, rastreabilidade de origem e catalogo agricola detalhado.
 
-**Fase 6 — Frontend**
-Interface de usuario e UX sobre o backend ja maduro.
+**Fase 6 — Frontend** ✅ Concluído
+Next.js 14 com marketplace, chat, perfil, admin e sistema de design agro completo.
 
-**Fase 7 — Infraestrutura de Producao**
-Containerizacao completa, migracao de uploads para object storage externo, deploy em ambiente real.
+**Fase 7 — Infraestrutura de Produção** ✅ Concluído
+Docker Compose, CI/CD com GitHub Actions, imagens no Docker Hub, backups automáticos, Cloudflare R2 para uploads.
+
+**Fase 8 — Domínio e Deploy**
+Apontar domínio para o servidor, configurar HTTPS (nginx/Caddy), atualizar `NEXT_PUBLIC_API_URL` no CI.
+
+**Fase 9 — PIX**
+Integração com PIX via Stripe para uso real no mercado brasileiro.
