@@ -4,7 +4,7 @@ const pool    = require('../lib/db');
 const { authenticateToken, optionalAuth } = require('../middleware/authMiddleware');
 const { userRateLimiter, strictWriteLimiter } = require('../middlewares/rateLimiters');
 const upload  = require('../middleware/uploadMiddleware');
-const { uploadToR2 } = require('../lib/storage');
+const { uploadFile } = require('../lib/storage');
 
 const router = express.Router();
 
@@ -52,7 +52,7 @@ router.get('/', optionalAuth, async (req, res) => {
 router.post('/upload-image', authenticateToken, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Nenhuma imagem enviada' });
-    const url = await uploadToR2(req.file.buffer, req.file.originalname, req.file.mimetype);
+    const url = await uploadFile(req.file.buffer, req.file.mimetype, 'listings');
     res.json({ url });
   } catch (e) {
     res.status(500).json({ error: e.message });

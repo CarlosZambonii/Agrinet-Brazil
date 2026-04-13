@@ -69,7 +69,7 @@ jobs:
           file: ./frontend/Dockerfile
           push: true
           build-args: |
-            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL || 'http://localhost:5000' }}
             NEXT_PUBLIC_API_KEY=${{ secrets.NEXT_PUBLIC_API_KEY }}
           tags: |
             caza6367/agrinet-frontend:latest
