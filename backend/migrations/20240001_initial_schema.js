@@ -4,8 +4,12 @@
  */
 
 exports.up = async function (knex) {
+  // Se o schema já foi criado pelo schema.sql, pula a migration inteira
+  const hasUsers = await knex.schema.hasTable('users');
+  if (hasUsers) return;
+
   // 1. users (sem dependências)
-  await knex.schema.createTable('users', (t) => {
+  await knex.schema.createTableIfNotExists('users', (t) => {
     t.string('id', 36).primary();
     t.string('email', 255).notNullable().unique('unique_email');
     t.integer('reputation_score').defaultTo(0);
@@ -22,7 +26,7 @@ exports.up = async function (knex) {
   });
 
   // 2. listings (refs: users)
-  await knex.schema.createTable('listings', (t) => {
+  await knex.schema.createTableIfNotExists('listings', (t) => {
     t.string('id', 36).primary();
     t.string('user_id', 36).notNullable().references('id').inTable('users');
     t.string('title', 255).notNullable();
@@ -47,7 +51,7 @@ exports.up = async function (knex) {
   });
 
   // 3. broadcasts (sem dependências)
-  await knex.schema.createTable('broadcasts', (t) => {
+  await knex.schema.createTableIfNotExists('broadcasts', (t) => {
     t.string('id', 36).primary();
     t.text('message').notNullable();
     t.timestamp('created_at').defaultTo(knex.fn.now());
@@ -56,7 +60,7 @@ exports.up = async function (knex) {
   });
 
   // 4. conversations (refs: listings, users)
-  await knex.schema.createTable('conversations', (t) => {
+  await knex.schema.createTableIfNotExists('conversations', (t) => {
     t.string('id', 36).primary();
     t.string('listing_id', 36).notNullable().references('id').inTable('listings');
     t.string('buyer_id', 36).notNullable().references('id').inTable('users');
@@ -67,7 +71,7 @@ exports.up = async function (knex) {
   });
 
   // 5. messages (refs: conversations, users)
-  await knex.schema.createTable('messages', (t) => {
+  await knex.schema.createTableIfNotExists('messages', (t) => {
     t.string('id', 36).primary();
     t.string('conversation_id', 36).notNullable().references('id').inTable('conversations').onDelete('CASCADE');
     t.string('sender_id', 36).notNullable().references('id').inTable('users');
@@ -80,7 +84,7 @@ exports.up = async function (knex) {
   });
 
   // 6. transactions (refs: users, listings)
-  await knex.schema.createTable('transactions', (t) => {
+  await knex.schema.createTableIfNotExists('transactions', (t) => {
     t.string('id', 36).primary();
     t.string('buyer_id', 36).notNullable().references('id').inTable('users').withKeyName('fk_transaction_buyer').onDelete('CASCADE');
     t.string('seller_id', 36).notNullable().references('id').inTable('users').withKeyName('fk_transaction_seller').onDelete('CASCADE');
@@ -112,7 +116,7 @@ exports.up = async function (knex) {
   });
 
   // 7. disputes (refs: transactions, users)
-  await knex.schema.createTable('disputes', (t) => {
+  await knex.schema.createTableIfNotExists('disputes', (t) => {
     t.string('id', 36).primary();
     t.string('transaction_id', 36).notNullable().unique('uq_dispute_transaction').references('id').inTable('transactions').withKeyName('fk_disputes_transaction');
     t.string('opened_by', 36).notNullable().references('id').inTable('users').withKeyName('fk_disputes_user');
@@ -126,7 +130,7 @@ exports.up = async function (knex) {
   });
 
   // 8. payments (refs: users)
-  await knex.schema.createTable('payments', (t) => {
+  await knex.schema.createTableIfNotExists('payments', (t) => {
     t.string('id', 36).primary();
     t.string('user_id', 36).notNullable().references('id').inTable('users');
     t.decimal('amount', 10, 2).notNullable();
@@ -142,7 +146,7 @@ exports.up = async function (knex) {
   });
 
   // 9. wallets (refs: users)
-  await knex.schema.createTable('wallets', (t) => {
+  await knex.schema.createTableIfNotExists('wallets', (t) => {
     t.string('user_id', 36).primary().references('id').inTable('users').withKeyName('fk_wallet_user').onDelete('CASCADE');
     t.decimal('balance', 12, 2).notNullable().defaultTo(0);
     t.timestamp('created_at').defaultTo(knex.fn.now());
@@ -150,7 +154,7 @@ exports.up = async function (knex) {
   });
 
   // 10. wallet_history (refs: transactions, users)
-  await knex.schema.createTable('wallet_history', (t) => {
+  await knex.schema.createTableIfNotExists('wallet_history', (t) => {
     t.bigIncrements('id');
     t.string('user_id', 36).notNullable().references('id').inTable('users').withKeyName('fk_wallet_history_user').onDelete('CASCADE');
     t.enu('type', ['purchase', 'sale', 'deposit', 'refund']).notNullable();
@@ -185,7 +189,7 @@ exports.up = async function (knex) {
   `);
 
   // 11. admin_actions (refs: users)
-  await knex.schema.createTable('admin_actions', (t) => {
+  await knex.schema.createTableIfNotExists('admin_actions', (t) => {
     t.string('id', 36).primary();
     t.string('admin_id', 36).notNullable().references('id').inTable('users');
     t.string('action', 50).notNullable();
@@ -197,7 +201,7 @@ exports.up = async function (knex) {
   });
 
   // 12. fraud_logs (sem FK formal, mas referencia users)
-  await knex.schema.createTable('fraud_logs', (t) => {
+  await knex.schema.createTableIfNotExists('fraud_logs', (t) => {
     t.bigIncrements('id');
     t.string('user_id', 36).notNullable();
     t.string('reason', 64).notNullable();
@@ -206,7 +210,7 @@ exports.up = async function (knex) {
   });
 
   // 13. fraud_queue (refs: users)
-  await knex.schema.createTable('fraud_queue', (t) => {
+  await knex.schema.createTableIfNotExists('fraud_queue', (t) => {
     t.string('id', 36).primary();
     t.string('user_id', 36).notNullable().references('id').inTable('users');
     t.string('reason', 255).nullable();
@@ -216,7 +220,7 @@ exports.up = async function (knex) {
   });
 
   // 14. listing_images (refs: listings)
-  await knex.schema.createTable('listing_images', (t) => {
+  await knex.schema.createTableIfNotExists('listing_images', (t) => {
     t.string('id', 36).primary();
     t.string('listing_id', 36).notNullable().references('id').inTable('listings').withKeyName('fk_listing_images_listing').onDelete('CASCADE');
     t.string('image_url', 500).notNullable();
@@ -226,7 +230,7 @@ exports.up = async function (knex) {
   });
 
   // 15. listing_price_history (refs: listings)
-  await knex.schema.createTable('listing_price_history', (t) => {
+  await knex.schema.createTableIfNotExists('listing_price_history', (t) => {
     t.string('id', 36).primary();
     t.string('listing_id', 36).notNullable().references('id').inTable('listings');
     t.decimal('old_price', 10, 2).notNullable();
@@ -237,7 +241,7 @@ exports.up = async function (knex) {
   });
 
   // 16. listing_stats (refs: listings)
-  await knex.schema.createTable('listing_stats', (t) => {
+  await knex.schema.createTableIfNotExists('listing_stats', (t) => {
     t.string('listing_id', 36).primary().references('id').inTable('listings').onDelete('CASCADE');
     t.integer('views').defaultTo(0);
     t.integer('clicks').defaultTo(0);
@@ -246,7 +250,7 @@ exports.up = async function (knex) {
   });
 
   // 17. node_registry (sem dependências)
-  await knex.schema.createTable('node_registry', (t) => {
+  await knex.schema.createTableIfNotExists('node_registry', (t) => {
     t.bigIncrements('id');
     t.string('node_url', 255).notNullable().unique();
     t.boolean('active').notNullable().defaultTo(true);
@@ -258,7 +262,7 @@ exports.up = async function (knex) {
   });
 
   // 18. notifications (refs: users)
-  await knex.schema.createTable('notifications', (t) => {
+  await knex.schema.createTableIfNotExists('notifications', (t) => {
     t.string('id', 36).primary();
     t.string('user_id', 36).notNullable().references('id').inTable('users');
     t.string('type', 50).notNullable();
@@ -270,7 +274,7 @@ exports.up = async function (knex) {
   });
 
   // 19. financial_audit_log (sem FKs)
-  await knex.schema.createTable('financial_audit_log', (t) => {
+  await knex.schema.createTableIfNotExists('financial_audit_log', (t) => {
     t.string('id', 36).primary();
     t.string('event_type', 50).notNullable();
     t.string('user_id', 36).nullable();

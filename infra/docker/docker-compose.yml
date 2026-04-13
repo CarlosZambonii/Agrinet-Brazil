@@ -4,8 +4,6 @@ services:
     image: mariadb:11
     container_name: agrinet_mariadb
     restart: unless-stopped
-    ports:
-      - "3306:3306"
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: agrinet
@@ -25,8 +23,6 @@ services:
     image: redis:7
     container_name: agrinet_redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
     command: redis-server --appendonly yes --appendfsync everysec
     volumes:
       - redis_data:/data
