@@ -58,5 +58,17 @@ function authMiddleware(req, res, next) {
   return authenticateToken(req, res, next);
 }
 
+// Tenta autenticar mas não bloqueia se não tiver token
+function optionalAuth(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return next();
+  try {
+    const token = authHeader.slice(7);
+    req.user = jwt.verify(token, process.env.JWT_SECRET || 'supersecretjwt');
+  } catch {}
+  return next();
+}
+
 module.exports = authMiddleware;
 module.exports.authenticateToken = authenticateToken;
+module.exports.optionalAuth = optionalAuth;

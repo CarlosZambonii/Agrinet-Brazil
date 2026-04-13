@@ -35,11 +35,6 @@ dotenv.config();
 const minimal = process.env.MINIMAL_SERVER === 'true';
 
 const app = express();
-const globalLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 100,
-  store: new RedisStore({ sendCommand: (...args) => redis.sendCommand(args) }),
-});
 
 /* ---------------- STRIPE WEBHOOK FIRST ---------------- */
 app.post(
@@ -49,40 +44,27 @@ app.post(
 );
 /* ------------------------------------------------------ */
 
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 200,
-  store: new RedisStore({ sendCommand: (...args) => redis.sendCommand(args) }),
-});
-
-const paymentLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  store: new RedisStore({ sendCommand: (...args) => redis.sendCommand(args) }),
-});
-
-// --- PRODUCTION-READY CORS RESTRICTION ---
-const allowedOrigins = ['https://www.ntari.org'];
+// --- CORS ---
+const allowedOrigins = [
+  'https://www.ntari.org',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : []),
+];
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('CORS not allowed for this origin'));
-    }
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    if (process.env.NODE_ENV !== 'production') return callback(null, true);
+    callback(new Error('CORS not allowed for this origin'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
 }));
-// -----------------------------------------
+// -----------
 
-app.use(limiter);
-/* ----------- THEN normal body parser ----------- */
+/* ----------- normal body parser ----------- */
 app.use(express.json());
-app.use(globalLimiter);
 /* ----------------------------------------------- */
 
 const tryMount = (route, modPath) => {
@@ -318,12 +300,12 @@ app.get("/metrics", async (req, res) => {
 });
 
 app.use("/auth", require("./routes/authRoutes"));
-app.use('/payments', paymentLimiter);
 app.use("/payments", require("./routes/paymentRoutes"));
 app.use('/transactions', require('./routes/transactionRoutes'));
 app.use('/admin', require('./routes/adminRoutes'));
 
 app.use('/listings', require('./routes/listingRoutes'));
+app.use('/wallet',   require('./routes/walletRoutes'));
 app.use("/conversations", require("./routes/conversationRoutes"));
 app.use("/messages", require("./routes/messageRoutes"));
 app.use("/notifications", require("./routes/notificationRoutes"));
@@ -349,6 +331,28 @@ const PORT = process.env.PORT || 5000;
 
 async function start() {
   await connectRedis();
+
+  // Rate limiters require Redis to be connected first
+  const globalLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 100,
+    store: new RedisStore({ sendCommand: (...args) => redis.sendCommand(args) }),
+  });
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 200,
+    store: new RedisStore({ sendCommand: (...args) => redis.sendCommand(args) }),
+  });
+  const paymentLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    store: new RedisStore({ sendCommand: (...args) => redis.sendCommand(args) }),
+  });
+  app.use(limiter);
+  app.use(globalLimiter);
+  app.use('/payments', paymentLimiter);
 
   const knex = require('knex')(require('./knexfile'));
   await knex.migrate.latest();
