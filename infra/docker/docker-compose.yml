@@ -41,8 +41,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    ports:
-      - "5000:5000"
     env_file:
       - ../../.env
     environment:
@@ -59,8 +57,6 @@ services:
     restart: unless-stopped
     depends_on:
       - api
-    ports:
-      - "3000:3000"
     environment:
       NEXT_PUBLIC_API_URL: http://api:5000/api
       NEXT_PUBLIC_API_KEY: ${API_KEY}
