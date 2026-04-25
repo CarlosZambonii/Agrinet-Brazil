@@ -4,6 +4,8 @@ Plataforma open source de comércio agrícola para o Brasil. Conecta produtores,
 
 > Derivado do projeto original [NTARI-RAND/Agrinet](https://github.com/NTARI-RAND/Agrinet) — adaptado para o mercado brasileiro por [Carlos Zamboni](https://github.com/CarlosZambonii).
 
+**Deploy ativo:** [https://agrinet.duckdns.org](https://agrinet.duckdns.org)
+
 ---
 
 ## Stack
@@ -19,8 +21,10 @@ Plataforma open source de comércio agrícola para o Brasil. Conecta produtores,
 | Tempo real | Socket.IO |
 | Observabilidade | Prometheus + Grafana |
 | Autenticação | JWT + bcryptjs |
+| Reverse proxy | nginx (HTTPS, roteamento, WebSocket) |
+| SSL | Let's Encrypt via Certbot |
 | Infraestrutura | Docker + Docker Compose |
-| CI/CD | GitHub Actions → Docker Hub |
+| CI/CD | GitHub Actions → Docker Hub → VPS |
 
 ---
 
@@ -53,7 +57,7 @@ cd infra/docker
 docker compose up -d
 ```
 
-| Serviço | URL |
+| Serviço | URL local |
 |---|---|
 | Frontend | http://localhost:3000 |
 | API | http://localhost:5000 |
@@ -64,6 +68,10 @@ Para subir também o monitoramento:
 ```bash
 docker compose --profile monitoring up -d
 ```
+
+### Deploy em VPS com HTTPS
+
+O stack de produção usa nginx como reverse proxy com SSL via Let's Encrypt. Consulte [`docs/infra.md`](./docs/infra.md) para o passo a passo completo.
 
 ---
 
@@ -109,11 +117,15 @@ Todas documentadas em [`backend/.env.example`](./backend/.env.example). As essen
 
 ## CI/CD
 
-A cada push na branch `main`, o GitHub Actions builda e publica as imagens no Docker Hub automaticamente:
+O pipeline é composto de dois workflows encadeados:
+
+**1. `build-and-push.yml`** — Disparado a cada push em `main` com mudanças em `backend/`, `frontend/` ou `infra/`. Builda e publica as três imagens no Docker Hub:
 
 - `caza6367/agrinet-api:latest`
 - `caza6367/agrinet-frontend:latest`
 - `caza6367/agrinet-federation-sync:latest`
+
+**2. `deploy.yml`** — Disparado automaticamente ao fim do workflow de build. Acessa a VPS via SSH e executa `docker compose pull && up -d`.
 
 **Secrets necessários no repositório** (`Settings → Secrets → Actions`):
 
@@ -121,8 +133,22 @@ A cada push na branch `main`, o GitHub Actions builda e publica as imagens no Do
 |---|---|
 | `DOCKERHUB_USERNAME` | Usuário do Docker Hub |
 | `DOCKERHUB_TOKEN` | Token de acesso do Docker Hub |
+| `NEXT_PUBLIC_API_URL` | URL pública da API (ex: `https://agrinet.duckdns.org`) |
 | `NEXT_PUBLIC_API_KEY` | Chave da API para o frontend |
-| `NEXT_PUBLIC_API_URL` | URL pública da API (opcional) |
+| `JWT_SECRET` | Segredo JWT (gerado com `openssl rand -hex 32`) |
+| `API_KEY` | Chave de acesso da API (gerado com `openssl rand -hex 32`) |
+| `DB_PASSWORD` | Senha do MariaDB |
+| `STRIPE_SECRET_KEY` | Chave secreta do Stripe |
+| `STRIPE_WEBHOOK_SECRET` | Secret do webhook Stripe |
+| `STRIPE_PUBLISHABLE_KEY` | Chave pública do Stripe |
+| `R2_ACCOUNT_ID` | ID da conta Cloudflare |
+| `R2_ACCESS_KEY_ID` | Access Key do bucket R2 |
+| `R2_SECRET_ACCESS_KEY` | Secret Key do bucket R2 |
+| `R2_PUBLIC_URL` | URL pública do bucket R2 |
+| `ALLOWED_ORIGINS` | Origens permitidas no CORS (ex: `https://agrinet.duckdns.org`) |
+| `VPS_HOST` | IP ou hostname da VPS |
+| `VPS_USER` | Usuário SSH da VPS |
+| `VPS_SSH_KEY` | Chave privada SSH para acesso à VPS |
 
 ---
 
