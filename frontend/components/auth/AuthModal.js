@@ -1,6 +1,5 @@
 'use client';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { saveAuth, decodeToken } from '@/lib/auth';
 import { useToast } from '@/components/ui/Toast';
@@ -11,7 +10,6 @@ export default function AuthModal({ tab: initialTab = 'login', onClose }) {
   const [pwd, setPwd] = useState('');
   const [loading, setLoading] = useState(false);
   const toast = useToast();
-  const router = useRouter();
 
   async function doLogin() {
     setLoading(true);
@@ -23,7 +21,7 @@ export default function AuthModal({ tab: initialTab = 'login', onClose }) {
       saveAuth(res.token, user);
       toast('Bem-vindo ao Agrinet!');
       onClose();
-      router.refresh();
+      window.dispatchEvent(new Event('auth-change'));
     } catch {
       saveAuthDemo(e);
     } finally {
@@ -41,7 +39,7 @@ export default function AuthModal({ tab: initialTab = 'login', onClose }) {
       saveAuth(res.token, user);
       toast('Conta criada!');
       onClose();
-      router.refresh();
+      window.dispatchEvent(new Event('auth-change'));
     } catch {
       saveAuthDemo(e);
     } finally {
@@ -54,7 +52,7 @@ export default function AuthModal({ tab: initialTab = 'login', onClose }) {
     saveAuth('demo', user);
     toast('Modo demo — backend offline', 'info');
     onClose();
-    router.refresh();
+    window.dispatchEvent(new Event('auth-change'));
   }
 
   return (

@@ -35,10 +35,15 @@ export function DesktopNav({ onOpenAuth }) {
   const { unread, markRead } = useNotifications();
 
   useEffect(() => {
-    setUser(getUser());
+    const sync = () => setUser(getUser());
+    sync();
     const onScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener('scroll', onScroll);
-    return () => window.removeEventListener('scroll', onScroll);
+    window.addEventListener('auth-change', sync);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('auth-change', sync);
+    };
   }, [pathname]);
 
   function logout() { clearAuth(); setUser(null); router.push('/'); }
@@ -98,7 +103,12 @@ export function MobileTopBar({ onOpenAuth }) {
   const router = useRouter();
   const { unread } = useNotifications();
 
-  useEffect(() => { setUser(getUser()); }, [pathname]);
+  useEffect(() => {
+    const sync = () => setUser(getUser());
+    sync();
+    window.addEventListener('auth-change', sync);
+    return () => window.removeEventListener('auth-change', sync);
+  }, [pathname]);
 
   const links = [...NAV_LINKS, ...(user && isAdmin(user) ? [ADMIN_LINK] : [])].filter(l => !l.auth || user);
 
@@ -174,7 +184,12 @@ export function BottomTabBar() {
   const pathname = usePathname();
   const router = useRouter();
 
-  useEffect(() => { setUser(getUser()); }, [pathname]);
+  useEffect(() => {
+    const sync = () => setUser(getUser());
+    sync();
+    window.addEventListener('auth-change', sync);
+    return () => window.removeEventListener('auth-change', sync);
+  }, [pathname]);
 
   const tabs = [
     { href: '/',            label: 'Início',  icon: '🌾' },
