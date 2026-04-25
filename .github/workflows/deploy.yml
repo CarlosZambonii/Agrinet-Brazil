@@ -59,7 +59,8 @@ jobs:
             WIX_API_KEY=${{ secrets.WIX_API_KEY }}
             ENVEOF
 
+            docker compose -f infra/docker/docker-compose.yml down --remove-orphans || true
             docker compose -f infra/docker/docker-compose.yml pull
-            docker compose -f infra/docker/docker-compose.yml up -d --remove-orphans
+            docker compose -f infra/docker/docker-compose.yml up -d
 
             docker image prune -f
