@@ -98,7 +98,25 @@ app.get("/healthz", async (_req, res) => {
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*"
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+      if (process.env.NODE_ENV !== 'production') return callback(null, true);
+      callback(new Error('CORS not allowed for this origin'));
+    },
+    credentials: true,
+  }
+});
+
+const jwt = require('./utils/jwt');
+
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token;
+  if (!token) return next(new Error('Authentication required'));
+  try {
+    socket.user = jwt.verify(token, process.env.JWT_SECRET || 'supersecretjwt');
+    next();
+  } catch {
+    next(new Error('Invalid token'));
   }
 });
 
