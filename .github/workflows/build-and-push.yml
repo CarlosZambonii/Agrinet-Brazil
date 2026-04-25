@@ -76,6 +76,7 @@ jobs:
           build-args: |
             NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL || 'http://localhost:5000' }}
             NEXT_PUBLIC_API_KEY=${{ secrets.NEXT_PUBLIC_API_KEY }}
+            CACHE_BUST=${{ github.run_id }}
           tags: |
             caza6367/agrinet-frontend:latest
             caza6367/agrinet-frontend:${{ steps.meta.outputs.version }}
